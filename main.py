@@ -5,7 +5,7 @@ from visualizer import MatplotlibVisualizer
 
 import numpy as np
 import matplotlib as plt
-
+#### TEST COMMIT
 def main():
     pendulum = Pendulum(length=2, mass=2, damping=1)
     theta0 = [np.radians(45), 0]
