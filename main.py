@@ -5,13 +5,11 @@ from visualizer import MatplotlibVisualizer
 
 import numpy as np
 import matplotlib as plt
-#### TEST COMMIT
+
 def main():
-    pendulum = Pendulum(length=2, mass=2, damping=1)
-    theta0 = [np.radians(45), 0]
-    t_span = [0, 10]
-    t_eval = np.linspace(0, 10, 500)
-    sim = Simulator(pendulum, t_span, theta0, t_eval)
+    pendulum = Pendulum(length=2, mass=2, damping=1, ang_position=np.radians(45),ang_velocity=0)
+    #theta0 = [np.radians(45), 0]
+    sim = Simulator(pendulum)
     result = sim.run()
 
     vis = MatplotlibVisualizer(pendulum.l)
