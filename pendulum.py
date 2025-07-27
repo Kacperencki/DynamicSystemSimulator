@@ -12,11 +12,21 @@ class Pendulum:
         self.g = gravity
         self.ang_pos = ang_position
         self.ang_vel = ang_velocity
+        self.initial_cond = [self.ang_pos, self.ang_vel]
 
 
     def dynamics(self, t, y):
-        u, v = y # u = angle, v = angular velocity
-        du_dt = v
-        dv_dt = - self.d*v/(self.m*self.l*self.l) -self.g / self.l * np.sin(u)
-        return [du_dt, dv_dt]
+        # y to initial conditions???? nie raczej nie y jest z solve_ivp
+        theta, dtheta = y # theta = angle, dtheta = angular velocity
+        theta_dt = dtheta
+        dtheta_dt = - self.d*dtheta/(self.m*self.l*self.l) - self.g / self.l * np.sin(theta)
+
+        return [theta_dt, dtheta_dt]
+
+
+    def point_coordinates(self, theta):
+        x = self.l * np.sin(theta)
+        y = - self.l * np.cos(theta)
+
+        return x, y
 
