@@ -12,8 +12,8 @@ class Simulator:
         self.initial_cond = initial_conditions
     def simulate(self):
         result = Solver(self.system, self.initial_cond).run()
-        vis = MatplotlibVisualizer(self.system)
-        vis.animation(result.y[0]) # y[0] is the theta array needed for calculating point change for pendulum
+        vis = MatplotlibVisualizer(self.system, result.y.T) # result.y.T transposes the shape from (n_vars, n_timepoints) → (n_timepoints, n_vars)
+        vis.animate()
 
 
 

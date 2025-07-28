@@ -22,6 +22,8 @@ class Pendulum:
         theta, _ = state
         x = self.l * np.sin(theta)
         y = - self.l * np.cos(theta)
-
+        """ 
+        Possible change that to include more options for visualizer to take like type of blob to draw on which point
+        """
         return [(0, 0), (x, y)]
 
