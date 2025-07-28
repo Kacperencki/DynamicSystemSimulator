@@ -1,4 +1,3 @@
-# main.py
 from simulator import Simulator
 from pendulum import Pendulum
 from visualizer import MatplotlibVisualizer
