@@ -3,15 +3,14 @@ import numpy as np
 
 class DoublePendulum:
 
-    def __init__(self, mass1, length1, mass2, length2, initial_conditions, gravity=9.81):
+    def __init__(self, mass1, length1, mass2, length2, gravity=9.81):
         self.m1 = mass1
         self.m2 = mass2
         self.l1 = length1
         self.l2 = length2
-        self.initial_cond = initial_conditions  # [theta1, dtheta1, theta2, dtheta2]
         self.g = gravity
 
-    def dynamics(self, y):
+    def dynamics(self, t, y):
         theta1, dtheta1, theta2, dtheta2 = y  # Muszę zastąpić y czymś bardziej przydatnym
 
         delta = theta1 - theta2
@@ -36,5 +35,15 @@ class DoublePendulum:
         ) / (self.l2 * denom)
 
         return [theta1_dt, dtheta1_dt, theta2_dt, dtheta2_dt]
+
+    def positions(self, state):
+        theta1, dtheta1, theta2, dtheta2 = state
+        x1 = self.l1 * np.sin(theta1)
+        y1 = -self.l1 * np.cos(theta1)
+
+        x2 = x1 + self.l2 * np.sin(theta2)
+        y2 = y1 - self.l2 * np.cos(theta2)
+
+        return [(0, 0), (x1, y1), (x2, y2)]
 
 

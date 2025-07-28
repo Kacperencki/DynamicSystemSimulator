@@ -9,8 +9,6 @@ class Pendulum:
         self.d = damping
         self.g = gravity
 
-
-
     def dynamics(self, t, y):
         # y to initial conditions???? nie raczej nie y jest z solve_ivp
         theta, dtheta = y # theta = angle, dtheta = angular velocity
@@ -20,9 +18,10 @@ class Pendulum:
         return [theta_dt, dtheta_dt]
 
 
-    def point_coordinates(self, theta):
+    def positions(self, state):
+        theta, _ = state
         x = self.l * np.sin(theta)
         y = - self.l * np.cos(theta)
 
-        return x, y
+        return [(0, 0), (x, y)]
 
