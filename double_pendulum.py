@@ -10,34 +10,34 @@ class DoublePendulum:
         self.l2 = length2
         self.g = gravity
 
-    def dynamics(self, t, y):
-        theta1, dtheta1, theta2, dtheta2 = y  # Muszę zastąpić y czymś bardziej przydatnym
+    def dynamics(self, t, state):
+        theta1, theta1_dot, theta2, theta2_dot = state  # Muszę zastąpić y czymś bardziej przydatnym
 
         delta = theta1 - theta2
 
         denom = 2*self.m1 + self.m2 - self.m2 * np.cos(2 * delta)
 
-        theta1_dt = dtheta1
-        theta2_dt = dtheta2
+        """theta1_dt = theta1_dot
+        theta2_dt = theta2_dot"""
 
-        dtheta1_dt = (
+        theta1_double_dot = (
             -self.g * (2 * self.m1 + self.m2) * np.sin(theta1)
             - self.m2 * self.g * np.sin(theta1-2*theta2)
-            - 2 * np.sin(delta) * self.m2 * (dtheta2**2 * self.l2 + dtheta1**2 * self.l1 * np.cos(delta))
+            - 2 * np.sin(delta) * self.m2 * (theta2_dot**2 * self.l2 + theta1_dot**2 * self.l1 * np.cos(delta))
         ) / (self.l1 * denom)
 
-        dtheta2_dt = (
+        theta2_double_dot = (
             2 * np.sin(delta) * (
-                dtheta1**2 * self.l1 * (self.m1 + self.m2)
+                theta1_dot**2 * self.l1 * (self.m1 + self.m2)
                 + self.g * (self.m1 + self.m2) * np.cos(theta1)
-                + dtheta2**2 * self.l2 * self.m2 * np.cos(delta)
+                + theta2_dot**2 * self.l2 * self.m2 * np.cos(delta)
             )
         ) / (self.l2 * denom)
 
-        return [theta1_dt, dtheta1_dt, theta2_dt, dtheta2_dt]
+        return np.array([theta1_dot, theta1_double_dot, theta2_dot, theta2_double_dot])
 
     def positions(self, state):
-        theta1, dtheta1, theta2, dtheta2 = state
+        theta1, theta1_dot, theta2, theta2_dot = state  # i can get rid of dtheta1 and dtheta2 cause they are velocities
         x1 = self.l1 * np.sin(theta1)
         y1 = -self.l1 * np.cos(theta1)
 
@@ -46,4 +46,22 @@ class DoublePendulum:
 
         return [(0, 0), (x1, y1), (x2, y2)]
 
+    def energy_check(self, state):
+        theta1, theta1_dot, theta2, theta2_dot = state
 
+        x1_dot = theta1_dot * self.l1 * np.cos(theta1)
+        y1_dot = theta1_dot * self.l1 * np.sin(theta1)
+
+        x2_dot = x1_dot + theta2_dot * self.l2 * np.cos(theta2)
+        y2_dot = y1_dot + theta2_dot * self.l2 * np.sin(theta2)
+
+        kinetic_energy = (self.m1 * (x1_dot**2 + y1_dot**2) + self.m2 * (x2_dot**2 + y2_dot))
+
+        h1 = self.l1 * (1 - np.cos(theta1))
+        h2 = h1 + self.l2 * (1 - np.cos(theta2))
+
+        potential_energy = self.m1 * self.g * h1 + self.m2 * self.g * h2
+
+        total_energy = kinetic_energy + potential_energy
+
+        return np.array([kinetic_energy, potential_energy, total_energy])
