@@ -12,6 +12,7 @@ class Simulator:
         self.initial_cond = initial_conditions
     def simulate(self):
         result = Solver(self.system, self.initial_cond).run()
+        print(result)
         vis = MatplotlibVisualizer(self.system, result.y.T) # result.y.T transposes the shape from (n_vars, n_timepoints) → (n_timepoints, n_vars)
         vis.animate()
 

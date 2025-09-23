@@ -57,13 +57,20 @@ class MatplotlibVisualizer:
 
         return self.lines + self.bobs
 
+    def energy_graph(self, frame_id):
+        state = self.states[frame_id]
+        energy = self.system.energy_check(state)
+
+        return energy
+
+
     def animate(self):
         ani = FuncAnimation(
             self.fig,
             self.update,
             frames=len(self.states),
             init_func=self.init_draw,
-            blit=False,
-            interval=1000 / 60  # 60 FPS
+            blit=True,
+            interval=1000 / 30  # 60 FPS
         )
         plt.show()
