@@ -18,15 +18,15 @@ class EnergySwingUp:
     def energy(self, state):
         x, x_dot, theta, theta_dot = state
 
-        return 0.5 * self.system.m * (self.system.l * theta_dot)**2 + self.system.m*self.system.g*self.system.l*(1 - np.cos(theta))
+        return 0.5 * self.system.m * (self.system.l * theta_dot)**2 + self.system.m*self.system.g*self.system.l*(1 + np.cos(theta))
 
     def __call__(self, t, state):
         x, x_dot, theta, theta_dot = state
 
-        energy_dot = self.energy(state) - self.energy_desired()
+        energy_diff = self.energy(state) - self.energy_desired()
 
-        phase = np.sign(theta_dot * np.cos(theta))
-        u = self.ke * energy_dot * phase - self.kv * x_dot
+
+        u = self.ke * energy_diff  * theta_dot * np.cos(theta) - self.kv * x_dot
 
         return np.clip(u, -self.F_max, self.F_max)
 

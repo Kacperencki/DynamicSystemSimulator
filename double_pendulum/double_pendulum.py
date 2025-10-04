@@ -1,6 +1,5 @@
 import numpy as np
 
-
 class DoublePendulum:
 
     def __init__(self, mass1, length1, mass2, length2, gravity=9.81):
@@ -11,7 +10,7 @@ class DoublePendulum:
         self.g = gravity
 
     def dynamics(self, t, state):
-        theta1, theta1_dot, theta2, theta2_dot = state  # Muszę zastąpić y czymś bardziej przydatnym
+        theta1, theta1_dot, theta2, theta2_dot = state  
 
         delta = theta1 - theta2
 
@@ -55,7 +54,7 @@ class DoublePendulum:
         x2_dot = x1_dot + theta2_dot * self.l2 * np.cos(theta2)
         y2_dot = y1_dot + theta2_dot * self.l2 * np.sin(theta2)
 
-        kinetic_energy = (self.m1 * (x1_dot**2 + y1_dot**2) + self.m2 * (x2_dot**2 + y2_dot))
+        kinetic_energy = (self.m1 * (x1_dot**2 + y1_dot**2) + self.m2 * (x2_dot**2 + y2_dot**2))/2
 
         h1 = self.l1 * (1 - np.cos(theta1))
         h2 = h1 + self.l2 * (1 - np.cos(theta2))
