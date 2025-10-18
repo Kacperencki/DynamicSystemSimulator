@@ -1,20 +1,21 @@
-
-from pendulum import Pendulum
 from visualizer import MatplotlibVisualizer
 from solver import Solver
-import numpy as np
-import matplotlib as plt
 
 
 class Simulator:
-    def __init__(self, system, initial_conditions):
+    def __init__(self, system, initial_conditions, graph=True):
         self.system = system
         self.initial_cond = initial_conditions
+        self.graph = graph
     def simulate(self):
         result = Solver(self.system, self.initial_cond).run()
         print(result)
-        vis = MatplotlibVisualizer(self.system, result.y.T) # result.y.T transposes the shape from (n_vars, n_timepoints) → (n_timepoints, n_vars)
+
+
+        vis = MatplotlibVisualizer(self.system, result, graph=self.graph) # result.y.T transposes the shape from (n_vars, n_timepoints) → (n_timepoints, n_vars)
         vis.animate()
+
+
 
 
 

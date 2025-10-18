@@ -17,10 +17,10 @@ class Pendulum:
 
 
         #Sprawdzanie jaki moment bezwładności wybrać
-        if mass_model == "point":
+        if self.mass_model == "point":
             moment_of_inertia = self.m * self.l**2
             mass_center_distance = self.l
-        elif mass_model == "uniform":
+        elif self.mass_model == "uniform":
             moment_of_inertia = (1.0/3.0) * (self.m *self.l**2)
             mass_center_distance = 0.5 * self.l
         else:
