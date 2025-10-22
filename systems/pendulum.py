@@ -16,6 +16,7 @@ class Pendulum:
         self.p = drive_phase # [rad]
 
 
+        """MOŻE DODAJ TO PO PROSTU JAKO FUNKCJE STARY"""
         #Sprawdzanie jaki moment bezwładności wybrać
         if self.mass_model == "point":
             moment_of_inertia = self.m * self.l**2
@@ -73,8 +74,6 @@ class Pendulum:
         return np.array([theta_dt, dtheta_dt])
 
 
-
-
     def positions(self, state):
         theta, theta_dot = state
         x_tip = self.l * np.sin(theta)
@@ -94,19 +93,9 @@ class Pendulum:
         kinetic_energy = 0.5 * self.I * theta_dot**2
         potential_energy = self.m * self.g * self.lc * (1 - np.cos(theta))
 
-
-        # OLD CODE bez uwzględnienia momentu bezwładności
-        """x_dot = self.l * theta_dot * np.cos(theta)
-        y_dot = self.l * theta_dot * np.sin(theta)
-
-        # Total kinetic energy
-        kinetic_energy = self.m * (x_dot**2 + y_dot**2)/2
-
-        # Total potential energy
-        h = self.l * (1 - np.cos(theta))
-        potential_energy = self.m * self.g * h
-        """
-
         total_energy = kinetic_energy + potential_energy
 
         return np.array([kinetic_energy, potential_energy, total_energy])
+
+    def state_labels(self):
+        return ["theta", "theta_dot"]

@@ -1,5 +1,5 @@
-from visualizer import MatplotlibVisualizer
-from solver import Solver
+from vizualizer.visualizer import MatplotlibVisualizer
+from core.solver import Solver
 
 
 class Simulator:

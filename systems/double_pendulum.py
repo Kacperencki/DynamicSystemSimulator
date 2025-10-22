@@ -45,6 +45,8 @@ class DoublePendulum:
 
         return [(0, 0), (x1, y1), (x2, y2)]
 
+    def state_labels(self):
+        return ["theta1 [rad]", "theta1_dot [rad/s]", "theta2 [rad]", "theta2_dot [rad/s]"]
     def energy_check(self, state):
         theta1, theta1_dot, theta2, theta2_dot = state
 

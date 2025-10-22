@@ -13,6 +13,6 @@ def damped_AB(M, m, l, g=9.81, b_cart=0.0, b_pend=0.0):
     A, B = ideal_AB(M, m, l, g)
 
     A[1,1] = -b_cart / M # somethin wrong here
-    A[3,1] = -b_pend / (m * l**2)
+    A[3,3] = -b_pend / (m * l**2)
 
     return A, B

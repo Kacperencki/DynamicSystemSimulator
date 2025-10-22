@@ -34,7 +34,7 @@ class MatplotlibVisualizer:
 
         # Need to changed to automaticaly being centered around system
         self.ax.set_xlim(-2, 2)
-        self.ax.set_ylim(-1, 1)
+        self.ax.set_ylim(-2, 2)
         self.ax.set_aspect('equal')
 
 
@@ -80,7 +80,7 @@ class MatplotlibVisualizer:
         # 3) Plot
         ax.plot(time, kinetic_energy, label="Kinetic energy")
         ax.plot(time, potential_energy, label="Potential energy")
-        ax.plot(time, total_energy, label="Energy")
+        ax.plot(time, total_energy, label="Total energy")
         # 4) Labeling & cosmetics
         ax.set_title("State x vs Time")
         ax.set_xlabel("Time [s]")
@@ -91,9 +91,28 @@ class MatplotlibVisualizer:
         # 5) Show or save
         plt.show()
 
+    def plot_states(self):
+        result = self.result
+        time = self.time
+
+        labels = self.system.state_labels()
+
+        fig = plt.figure()
+
+        for i in range(len(labels)):
+            plt.plot(time, result[:, i], label=labels[i])
+
+        plt.xlabel("t [s]")
+        plt.legend();
+        plt.grid(True)
+
+        return fig
 
 
-    def animate(self, fps=60):
+
+    def animate(self, fps=60, save_gif=False):
+
+        self.plot_states()
 
 
         ani = FuncAnimation(
@@ -102,11 +121,18 @@ class MatplotlibVisualizer:
             frames=len(self.result),
             init_func=self.init_draw,
             blit=True,
-            interval=1000 / fps  # 60 FPS
+            interval=10  # 60 FPS
         )
+
+        if save_gif:
+            from matplotlib.animation import PillowWriter
+            writer = PillowWriter(fps=fps)
+            ani.save("animation.gif", writer=writer)
+            print(f"Animation saved as '{"GIF"}'")
+
         plt.show()
 
-        print("AAAAAAAAAAAAAAAAAAAAA")
+
         if self.graph == True:
             self.energy_graph()
 

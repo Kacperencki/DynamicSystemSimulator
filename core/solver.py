@@ -6,7 +6,7 @@ import scipy
 
 class Solver:
 
-    def __init__(self, system, initial_conditions,T=15, fps=60 ,t_span=None, t_eval=None):
+    def __init__(self, system, initial_conditions,T=10, fps=60 ,t_span=None, t_eval=None):
         self.system = system
         self.initial_cond = initial_conditions
 

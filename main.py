@@ -1,49 +1,47 @@
-from simulator import Simulator
-from pendulum import Pendulum
-from double_pendulum import DoublePendulum
-from visualizer import MatplotlibVisualizer
-from solver import Solver
+from core.simulator import Simulator
+from systems.vanderpoll_circuit import VanDerPol
+from systems.double_pendulum import DoublePendulum
+from systems.pendulum import Pendulum
 import numpy as np
-import matplotlib as plt
+
+from inverted_pendulum.controllers.lqr_controller import LQRController
+from inverted_pendulum.controllers.swingup import EnergySwingUp
+from inverted_pendulum.controllers.simple_switcher import SimpleSwitcher
+from inverted_pendulum.closed_lood_cart import CloseLoopCart
+from inverted_pendulum.inverted_pendulum import InvertedPendulum
+
 
 def main():
-    """print("Please select anmiation of single (SP) or double pendulum (DP):")
-    user_input = input()"""
 
-    print("Damped or Ideal pendulum?: ")
-    user_input = input()
+    van = VanDerPol()
+    initial_cond = np.array([1.0, 0.0])
 
-    if user_input == "D":
-        mode = "damped"
-        print("Select mass (2): ")
-        mass_input = 2
-        print("Select length (2_: ")
-        length_input = 2
-        print("Select damping (1): ")
-        damping_input = 1
-        print("Select mass_model (point or uniform):")
-        mass_model_input = input()
+    simul = Simulator(system=van, initial_conditions=initial_cond)
+    simul.simulate()
 
-        pendulum = Pendulum(length=length_input, mass=mass_input, damping=damping_input, mode=mode, mass_model=mass_model_input)
-        print("Select initial cond")
-        initial_conditions = [np.pi / 4, 0]
-        simul2 = Simulator(pendulum, initial_conditions)
-        simul2.simulate()
-    else:
-        print("esle")
-
-
-    """#if user_input == "SP":
-    pendulum = Pendulum(length=2, mass=2, damping=1)
-    initial_conditions = [np.pi/4, 0]
-    simul = Simulator(pendulum, initial_conditions)
+    """dp = DoublePendulum(mass1=1, mass2=1, length1=1, length2=1)
+    initial_cond = [np.pi/2, 0, np.pi/4, 0]
+    simul = Simulator(system=dp, initial_conditions=initial_cond)
     simul.simulate()"""
 
-    """elif user_input == "DP":
-    d_pendulum = DoublePendulum(length1=2, mass1=4, length2=1, mass2=2)
-    initial_conditions = [np.pi/2, 0, np.pi/4, 0]
-    simul = Simulator(d_pendulum, initial_conditions)
+    """pendulum = Pendulum(length=2.0, mass=2.0, mode="ideal")
+    initial_cond = np.array([np.pi/2, 0])
+
+    simul = Simulator(system=pendulum, initial_conditions=initial_cond)
     simul.simulate()"""
+
+
+    """inv = InvertedPendulum(mode="ideal")
+    lqr = LQRController(system=inv)
+    swing = EnergySwingUp(system=inv)
+    switch = SimpleSwitcher(system=inv ,lqr_controller=lqr, swingup_controller=swing)
+
+    cart = CloseLoopCart(system=inv, controller=switch)
+
+    initial_cond = [0, 0, np.pi, 0]
+    simul = Simulator(system=cart, initial_conditions=initial_cond)
+    simul.simulate()"""
+
 
 if __name__ == "__main__":
     main()
