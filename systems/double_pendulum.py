@@ -2,15 +2,23 @@ import numpy as np
 
 class DoublePendulum:
     """
-    Dwuprzegubowe wahadło z masami punktowymi na bezmasowych prętach.
-    Kąty absolutne od pionu: theta1, theta2.
-    Stan: [theta1, theta1_dot, theta2, theta2_dot]
+    Two-link pendulum with point masses (massless rods) OR uniform rods.
 
-    Tryby (spójne z single pendulum):
-      - "ideal":      tylko grawitacja i nieliniowe sprzężenia (bez tłumienia, bez napędu)
-      - "damped":     + tłumienie lepkie (-b*theta_dot)
-      - "driven":     + wymuszenie sinusoidalne (na przegubie 1)
-      - "dc_driven":  moment z silnika DC (tau_drive) na przegubie 1
+    Public angles are ABSOLUTE from the DOWNWARD vertical:
+        state = [theta1, theta1_dot, theta2, theta2_dot]
+
+    Modes:
+      - 'ideal'     : gravity + nonlinear coupling (no damping, no drives)
+      - 'damped'    : + viscous damping at both joints
+      - 'driven'    : + harmonic drive (supports joint 1 and/or joint 2)
+      - 'dc_driven' : + external torque(s) (tau1 or (tau1, tau2))
+
+    Mass models:
+      - 'point'   : lc = l,   I_com = 0
+      - 'uniform' : lc = l/2, I_com = (1/12) m l^2
+
+    Internally, dynamics use relative coordinates (q1 = theta1, r = theta2 - theta1)
+    for the rigid-body matrices; API remains in absolute angles for clarity.
     """
 
     def __init__(self,
@@ -18,8 +26,14 @@ class DoublePendulum:
                  length2, mass2,
                  mode,
                  damping1=0.0, damping2=0.0,
-                 drive_amplitude=0.0, drive_frequency=0.0, drive_phase=0.0,
-                 gravity=9.81):
+                 drive1_amplitude=0.0, drive1_frequency=0.0, drive1_phase=0.0,
+                 drive2_amplitude=0.0, drive2_frequency=0.0, drive2_phase=0.0,
+                 gravity=9.81,
+                 mass_model="uniform",
+                 I1=None, lc1=None,
+                 I2=None, lc2=None
+                 ):
+
         # parametry geometryczne i masowe
         self.l1 = float(length1)
         self.m1 = float(mass1)
@@ -32,28 +46,64 @@ class DoublePendulum:
         self.b2 = float(damping2)
 
         # parametry wymuszenia sinusoidalnego
-        self.a = float(drive_amplitude)
-        self.f = float(drive_frequency)
-        self.p = float(drive_phase)
+        self.A1 = float(drive1_amplitude)
+        self.f1 = float(drive1_frequency)
+        self.phi1 = float(drive1_phase)
 
-        # wybór trybu
-        self.mode = mode
-        self.mode_map = {
-            "ideal": self.dynamics_ideal,
-            "damped": self.dynamics_damped,
-            "driven": self.dynamics_driven,
-            "dc_driven": self.dynamics_dc_driven
-        }
-        if self.mode not in self.mode_map:
-            raise ValueError(f"Unknown mode {self.mode}")
+        self.A2 = float(drive2_amplitude)
+        self.f2 = float(drive2_frequency)
+        self.phi2 = float(drive2_phase)
+
+        self.mass_model = mass_model.lower().strip()
+
+
+        def _inertia_pair(m, l):
+            if self.mass_model == "point":
+                I = 0.0
+                lc = l
+                return I, lc
+
+            elif self.mass_model == "uniform":
+                I = (0.1/12.0) * m * (l**2)
+                lc = 0.5 * l
+                return I, lc
+            else:
+                raise ValueError(f"Unknown mass_model: {mass_model!r}. Use 'point' or 'uniform'.")
+
+
+        default_I1, default_lc1 = _inertia_pair(self.m1, self.l1)
+        default_I2, default_lc2 = _inertia_pair(self.m2, self.l2)
+
+        self.lc1 = float(default_lc1) if lc1 is None else float(lc1)
+        self.lc2 = float(default_lc2) if lc2 is None else float(lc2)
+        self.I1 = float(default_I1) if I1 is None else float(I1)
+        self.I2 = float(default_I2) if I2 is None else float(I2)
+
+        self.mode = str(mode).lower().strip()
+        if self.mode not in {"ideal", "damped", "driven", "dc_driven"}:
+            raise ValueError(f"Unknown mode: {mode!r}. Use 'ideal', 'damped', 'driven', or 'dc_driven'.")
+
+
+
 
     # ======================================================================
     # Public API (spójne z single pendulum)
     # ======================================================================
 
     def dynamics(self, t, state, tau_drive=None):
-        """Zwraca [theta1_dot, theta1_ddot, theta2_dot, theta2_ddot]."""
-        return self.mode_map[self.mode](t, state, tau_drive)
+        if self.mode == "ideal":
+            return self.dynamics_ideal(t, state)
+
+        if self.mode == "damped":
+            return self.dynamics_damped(t, state)
+
+        if self.mode == "driven":
+            return self.dynamics_driven(t, state)
+
+        if self.mode == "dc_driven":
+            return self.dynamics_dc_driven(t, state, tau_drive)
+
+        raise RuntimeError(f"Unhandled mode: {self.mode!r}")
 
     def state_labels(self):
         return ["theta1", "theta1_dot", "theta2", "theta2_dot"]
@@ -70,7 +120,7 @@ class DoublePendulum:
         y1 = -self.l1 * np.cos(theta1)
         x2 = x1 + self.l2 * np.sin(theta2)
         y2 = y1 - self.l2 * np.cos(theta2)
-        return [(0, 0), (x1, y1), (x2, y2)]
+        return [(0.0, 0.0), (float(x1), float(y1)), (float(x2), float(y2))]
 
     def energy_check(self, state):
         """Zwraca [energia kinetyczna, potencjalna, całkowita]."""
@@ -86,116 +136,113 @@ class DoublePendulum:
         potential = self.m1*self.g*h1 + self.m2*self.g*h2
         return np.array([kinetic, potential, kinetic + potential])
 
-    # ======================================================================
-    # Core mechanics
-    # ======================================================================
 
-    def _mass_matrix(self, theta1, theta2):
-        """Macierz bezwładności M(q)."""
-        delta = theta1 - theta2
-        M11 = (self.m1 + self.m2) * self.l1**2
-        M22 = self.m2 * self.l2**2
-        M12 = self.m2 * self.l1 * self.l2 * np.cos(delta)
-        return M11, M12, M22  # macierz symetryczna
 
-    def _passive_acc(self, theta1, theta1_dot, theta2, theta2_dot):
-        """Przyspieszenia od grawitacji i nieliniowych sprzężeń (bez momentów zewn.)."""
-        delta = theta1 - theta2
-        denom = 2*self.m1 + self.m2 - self.m2 * np.cos(2 * delta)
+        # ------------------------------------------------------------------ #
+        # Modes (tiny, readable ODEs)
+        # ------------------------------------------------------------------ #
+    def dynamics_ideal(self, t, state):
+        """Gravity + coupling; no damping, no drives."""
+        return self._solve_theta_ddot(t, state,
+                                          tau1=0.0, tau2=0.0,
+                                          use_damping=False,
+                                          include_harmonic=False)
 
-        theta1_ddot_passive = (
-            -self.g * (2*self.m1 + self.m2) * np.sin(theta1)
-            - self.m2 * self.g * np.sin(theta1 - 2*theta2)
-            - 2 * np.sin(delta) * self.m2 * (theta2_dot**2 * self.l2 + theta1_dot**2 * self.l1 * np.cos(delta))
-        ) / (self.l1 * denom)
+    def dynamics_damped(self, t, state):
+        """Add viscous damping at both joints."""
+        return self._solve_theta_ddot(t, state,
+                                          tau1=0.0, tau2=0.0,
+                                          use_damping=True,
+                                          include_harmonic=False)
 
-        theta2_ddot_passive = (
-            2 * np.sin(delta) * (
-                theta1_dot**2 * self.l1 * (self.m1 + self.m2)
-                + self.g * (self.m1 + self.m2) * np.cos(theta1)
-                + theta2_dot**2 * self.l2 * self.m2 * np.cos(delta)
-            )
-        ) / (self.l2 * denom)
-
-        return theta1_ddot_passive, theta2_ddot_passive
-
-    def _active_acc(self, theta1, theta2, torque1, torque2):
-        """Zmiana przyspieszeń kątowych spowodowana momentami zewnętrznymi."""
-        M11, M12, M22 = self._mass_matrix(theta1, theta2)
-        det = M11*M22 - M12**2
-        Minv11 =  M22 / det
-        Minv12 = -M12 / det
-        Minv22 =  M11 / det
-
-        theta1_ddot_active = Minv11 * torque1 + Minv12 * torque2
-        theta2_ddot_active = Minv12 * torque1 + Minv22 * torque2
-        return theta1_ddot_active, theta2_ddot_active
-
-    # ======================================================================
-    # Tryby pracy
-    # ======================================================================
-
-    def dynamics_ideal(self, t, state, _unused=None):
-        theta1, theta1_dot, theta2, theta2_dot = state
-        theta1_ddot, theta2_ddot = self._passive_acc(theta1, theta1_dot, theta2, theta2_dot)
-
-        return np.array([theta1_dot, theta1_ddot, theta2_dot, theta2_ddot])
-
-    def dynamics_damped(self, t, state, _unused=None):
-        theta1, theta1_dot, theta2, theta2_dot = state
-
-        theta1_ddot_passive, theta2_ddot_passive = self._passive_acc(
-            theta1, theta1_dot, theta2, theta2_dot
-        )
-
-        torque1 = -self.b1 * theta1_dot
-        torque2 = -self.b2 * theta2_dot
-
-        theta1_ddot_active, theta2_ddot_active = self._active_acc(
-            theta1, theta2, torque1, torque2
-        )
-
-        theta1_ddot = theta1_ddot_passive + theta1_ddot_active
-        theta2_ddot = theta2_ddot_passive + theta2_ddot_active
-
-        return np.array([theta1_dot, theta1_ddot, theta2_dot, theta2_ddot])
-
-    def dynamics_driven(self, t, state, _unused=None):
-        theta1, theta1_dot, theta2, theta2_dot = state
-
-        theta1_ddot_passive, theta2_ddot_passive = self._passive_acc(
-            theta1, theta1_dot, theta2, theta2_dot
-        )
-
-        torque_drive = self.a * np.cos(self.f * t + self.p)
-        torque1 = torque_drive - self.b1 * theta1_dot
-        torque2 = -self.b2 * theta2_dot
-
-        theta1_ddot_active, theta2_ddot_active = self._active_acc(
-            theta1, theta2, torque1, torque2
-        )
-
-        theta1_ddot = theta1_ddot_passive + theta1_ddot_active
-        theta2_ddot = theta2_ddot_passive + theta2_ddot_active
-
-        return np.array([theta1_dot, theta1_ddot, theta2_dot, theta2_ddot])
+    def dynamics_driven(self, t, state):
+        """
+        Harmonic drives (either joint can be active):
+        tau1 += A1*cos(f1*t + phi1) if A1,f1 set
+        tau2 += A2*cos(f2*t + phi2) if A2,f2 set
+        """
+        return self._solve_theta_ddot(t, state,
+                                      tau1="harmonic1",
+                                      tau2="harmonic2",
+                                      use_damping=True,
+                                      include_harmonic=True)
 
     def dynamics_dc_driven(self, t, state, tau_drive):
-        """Silnik DC: tau_drive (skalar) działa na przegubie 1."""
+        """
+        External actuator torques:
+            - if scalar: tau1 = scalar, tau2 = 0.0
+            - if (tau1, tau2): both joints driven
+        """
+        tau1_val, tau2_val = 0.0, 0.0
+        if tau_drive is None:
+            tau1_val, tau2_val = 0.0, 0.0
+        elif isinstance(tau_drive, (tuple, list)) and len(tau_drive) == 2:
+            tau1_val, tau2_val = float(tau_drive[0]), float(tau_drive[1])
+        else:
+            tau1_val, tau2_val = float(tau_drive), 0.0
+
+        return self._solve_theta_ddot(t, state,
+                                          tau1=tau1_val, tau2=tau2_val,
+                                          use_damping=True,
+                                          include_harmonic=False)
+
+    def _solve_theta_ddot(self, t, state, tau1, tau2, use_damping, include_harmonic):
+        """
+        Build M(q), C(q,qd)qd, G(q), then solve for [theta1_ddot, theta2_ddot].
+        tau1, tau2 can be numbers or the strings 'harmonic1'/'harmonic2'.
+        """
         theta1, theta1_dot, theta2, theta2_dot = state
 
-        theta1_ddot_passive, theta2_ddot_passive = self._passive_acc(
-            theta1, theta1_dot, theta2, theta2_dot
-        )
+        # Map torques (compose harmonic and damping in ABSOLUTE joints)
+        def harmonic(val, A, f, phi):
+            return (A * np.cos(f * t + phi)) if (include_harmonic and A != 0.0 and f != 0.0) else 0.0
 
-        torque1 = (0.0 if tau_drive is None else float(tau_drive)) - self.b1 * theta1_dot
-        torque2 = -self.b2 * theta2_dot
+        tau1_val = (harmonic(0.0, self.A1, self.f1, self.phi1) if tau1 == "harmonic1"
+                    else float(tau1))
+        tau2_val = (harmonic(0.0, self.A2, self.f2, self.phi2) if tau2 == "harmonic2"
+                    else float(tau2))
 
-        theta1_ddot_active, theta2_ddot_active = self._active_acc(
-            theta1, theta2, torque1, torque2
-        )
+        if use_damping:
+            tau1_val += -self.b1 * theta1_dot
+            tau2_val += -self.b2 * theta2_dot
 
-        theta1_ddot = theta1_ddot_passive + theta1_ddot_active
-        theta2_ddot = theta2_ddot_passive + theta2_ddot_active
+        # Relative coordinates
+        q1, r = theta1, (theta2 - theta1)
+        q1d, rd = theta1_dot, (theta2_dot - theta1_dot)
 
-        return np.array([theta1_dot, theta1_ddot, theta2_dot, theta2_ddot])
+        # Inertia matrix M(q) (with COM inertias)
+        c = np.cos(r);
+        s = np.sin(r)
+        m11 = (self.I1 + self.I2
+               + self.m1 * (self.lc1 ** 2)
+               + self.m2 * (self.l1 ** 2 + self.lc2 ** 2 + 2.0 * self.l1 * self.lc2 * c))
+        m12 = self.I2 + self.m2 * (self.lc2 ** 2 + self.l1 * self.lc2 * c)
+        m22 = self.I2 + self.m2 * (self.lc2 ** 2)
+
+        # Coriolis/centrifugal C(q,qd)qd in relative coords
+        h = self.m2 * self.l1 * self.lc2 * s
+        c1 = -h * (2.0 * q1d * rd + rd * rd)
+        c2 = h * (q1d ** 2)
+
+        # Gravity
+        g1 = (self.m1 * self.lc1 + self.m2 * self.l1) * self.g * np.sin(q1) + self.m2 * self.lc2 * self.g * np.sin(
+            q1 + r)
+        g2 = self.m2 * self.lc2 * self.g * np.sin(q1 + r)
+
+        # Right-hand side
+        rhs1 = tau1_val - c1 - g1
+        rhs2 = tau2_val - c2 - g2
+
+        # Solve 2x2
+        det = m11 * m22 - m12 * m12
+        eps = 1e-9
+        if abs(det) < eps:
+            det = eps if det >= 0 else -eps
+        inv11, inv12, inv22 = m22 / det, -m12 / det, m11 / det
+
+        q1dd = inv11 * rhs1 + inv12 * rhs2
+        rdd = inv12 * rhs1 + inv22 * rhs2
+
+        theta1_ddot = q1dd
+        theta2_ddot = q1dd + rdd
+        return np.array([theta1_dot, theta1_ddot, theta2_dot, theta2_ddot], dtype=float)
