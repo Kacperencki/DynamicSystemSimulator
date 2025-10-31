@@ -3,76 +3,118 @@ import numpy as np
 
 
 class Pendulum:
-    def __init__(self, length, mass, mode, damping=0.0, drive_amplitude=2, drive_frequency=2.0, drive_phase=0.0, gravity=9.81, mass_model="point", I=None, lc=None):
-        self.l = length # [m]
-        self.m = mass # [kg]
-        self.b = damping # [N*m*s/rad]
-        self.g = gravity # [m/s^2]
+    def __init__(self,
+                 length,
+                 mass,
+                 mode,
+                 damping=0.0,
+                 drive_amplitude=2,
+                 drive_frequency=2.0,
+                 drive_phase=0.0,
+                 gravity=9.81,
+                 mass_model="point",
+                 I=None,
+                 lc=None
+                 ):
 
-        self.mass_model = mass_model
+        # Basic geometry
+        self.l = float(length)   # [m]
+        self.m = float(mass)     # [kg]
+        self.b = float(damping)  # [N*m*s/rad]
+        self.g = float(gravity)  # [m/s^2]
 
-        self.a = drive_amplitude # [N*m]
-        self.f = drive_frequency # [rad/s]
-        self.p = drive_phase # [rad]
+        # Drive mode varaibles
+        self.A = float(drive_amplitude)  # [N*m]
+        self.f = float(drive_frequency)  # [rad/s]
+        self.phi = float(drive_phase)    # [rad]
 
+        self.mass_model = mass_model.lower().strip()
+        default_I, default_lc = self._inertia(self.mass_model, self.m, self.l)
 
-        """MOŻE DODAJ TO PO PROSTU JAKO FUNKCJE STARY"""
-        #Sprawdzanie jaki moment bezwładności wybrać
-        if self.mass_model == "point":
-            moment_of_inertia = self.m * self.l**2
-            mass_center_distance = self.l
-        elif self.mass_model == "uniform":
-            moment_of_inertia = (1.0/3.0) * (self.m *self.l**2)
-            mass_center_distance = 0.5 * self.l
-        else:
-            raise ValueError(f"Unknown mass_model: {mass_model}")
-
-        self.I = moment_of_inertia if I is None else I   # I to bezwładność (moment of inertia) [kg*m^2]
-        self.lc = mass_center_distance if lc is None else lc  # lc to odległość do środka masy (length to center)
-
-
+        self.I = float(default_I) if I is None else float(I)      # I to bezwładność (moment of inertia) [kg*m^2]
+        self.lc = float(default_lc) if lc is None else float(lc)  # lc to odległość do środka masy (length to center)
 
         self.mode = mode
-        self.mode_map = {
-            "damped": self.dynamics_damped,
-            "ideal": self.dynamics_ideal,
-            "driven": self.dynamics_driven
-        }
-        if self.mode not in self.mode_map:
-            raise ValueError(f"Unknown mode {self.mode}")
 
 
     #Funkcja która za pomocą self.mode uruchamia odpowiednią funkcję pasującą do tego trybu
-    def dynamics(self, t, state):
-        return self.mode_map[self.mode](t, state)
+    def dynamics(self, t, state, tau_drive=None):
+        """Dispatcher: routes to the chosen textbook case."""
+        if self.mode == "ideal":
+            return self.dynamics_ideal(t, state)
 
+        if self.mode == "damped":
+            return self.dynamics_damped(t, state)
 
+        if self.mode == "driven":
+            return self.dynamics_driven(t, state)
+
+        if self.mode == "dc_driven":
+            return self.dynamics_dc_driven(t, state, tau_drive or 0.0)
+
+        raise ValueError(f"Unknown mode: {self.mode}")
+
+    # --- textbook-size ODEs (everything inline; no helper jumping) ---
     def dynamics_ideal(self, t, state):
-
-        theta, theta_dot = state  # theta = angle, theta_dot = angular velocity
+        """(gravity only)."""
+        theta, theta_dot = state
         theta_dt = theta_dot
-        dtheta_dt = -(self.m * self.g * self.lc)/self.I * np.sin(theta) # po skróceniu wychodzi wzór -g/l *sin(theta), I=ml^2
-
-        return np.array([theta_dt, dtheta_dt])
+        dtheta_dt = -(self.m * self.g * self.lc) / self.I * np.sin(theta)
+        return np.array([theta_dt, dtheta_dt], dtype=float)
 
     def dynamics_damped(self, t, state):
-
-        theta, theta_dot = state  # theta = angle, theta_dot = angular velocity
+        """(viscous + gravity)."""
+        theta, theta_dot = state
+        tau_damp = self.b * theta_dot
+        tau_grav = self.m * self.g * self.lc * np.sin(theta)
         theta_dt = theta_dot
-
-        dtheta_dt = (-self.b * theta_dot - self.m *self.g * self.lc * np.sin(theta))/self.I
-
-        return np.array([theta_dt, dtheta_dt])
+        dtheta_dt = (-tau_damp - tau_grav) / self.I
+        return np.array([theta_dt, dtheta_dt], dtype=float)
 
     def dynamics_driven(self, t, state):
+        """(harmonic + damping + gravity)."""
         theta, theta_dot = state
-
-        tau_drive = self.a * np.cos(self.f * t + self.p)
+        tau_harm = self.A * np.cos(self.f * t + self.phi) if (self.A and self.f) else 0.0
+        tau_damp = self.b * theta_dot
+        tau_grav = self.m * self.g * self.lc * np.sin(theta)
         theta_dt = theta_dot
-        dtheta_dt = (tau_drive-self.b * theta_dot - self.m *self.g * self.lc * np.sin(theta))/self.I
+        dtheta_dt = (tau_harm - tau_damp - tau_grav) / self.I
+        return np.array([theta_dt, dtheta_dt], dtype=float)
 
-        return np.array([theta_dt, dtheta_dt])
+    def dynamics_dc_driven(self, t, state, tau_drive):
+        """(external actuator + damping + gravity)."""
+        theta, theta_dot = state
+        tau_ext = float(tau_drive) if tau_drive is not None else 0.0
+        tau_damp = self.b * theta_dot
+        tau_grav = self.m * self.g * self.lc * np.sin(theta)
+        theta_dt = theta_dot
+        dtheta_dt = (tau_ext - tau_damp - tau_grav) / self.I
+        return np.array([theta_dt, dtheta_dt], dtype=float)
 
+
+    """
+    optional: unified view for advanced readers (keep commented or separate) ---
+    def dynamics_unified(self, t, state, tau_drive=None):
+         'I*dθ̇ = τ_ext + A cos(ft+φ) - b θ̇ - m g lc sinθ (terms zeroed per mode).'
+         theta, theta_dot = state
+         tau_ext  = float(tau_drive) if (self.mode == "dc_driven" and tau_drive is not None) else 0.0
+         tau_harm = self.A*np.cos(self.f*t + self.phi) if (self.mode == "driven" and self.A and self.f) else 0.0
+         tau_damp = self.b*theta_dot if self.mode != "ideal" else 0.0
+         tau_grav = self.m*self.g*self.lc*np.sin(theta)
+         
+         theta_dt = theta_dot
+         dthetha_dt = (tau_ext + tau_harm - tau_damp - tau_grav)/self.I
+         return np.array([theta_dt, dtheta_dt], dtype=float)
+    """
+
+    def state_labels(self):
+        # Name of the state variables (useful for plotting and CSV data storage)
+        return ["theta", "theta_dot"]
+
+    def joint_speed(self, state):
+        """Prędkość złącza, które napędzasz (pivot)."""
+        theta, theta_dot = state
+        return float(theta_dot)
 
     def positions(self, state):
         theta, theta_dot = state
@@ -95,7 +137,24 @@ class Pendulum:
 
         total_energy = kinetic_energy + potential_energy
 
-        return np.array([kinetic_energy, potential_energy, total_energy])
+        return np.array([kinetic_energy, potential_energy, total_energy], dtype=float)
 
-    def state_labels(self):
-        return ["theta", "theta_dot"]
+
+    # HELPER FUNCTIONS
+
+
+    def _inertia(self, mass_model, m, l):
+        """
+        Derive I and lc for simple mass model
+        """
+        model = mass_model.lower.strip()
+        if model == "point":
+            I = m * (l**2)
+            lc = l
+        elif model =="uniform":
+            I = (1.0/3.0) * m * (l**2)
+            lc = 0.5 * l
+        else:
+            raise ValueError(f"Unknown mass_model: {mass_model}. Use 'point' or 'uniform'.")
+
+        return I, lc
