@@ -1,77 +1,62 @@
-from scipy.linalg import solve_continuous_are
 import numpy as np
-from inverted_pendulum.linearize import ideal_AB
+from scipy.linalg import solve_continuous_are
+from inverted_pendulum.linearize import linearize_upright
 
-def wrap_to_pi(theta):
-    return ((theta + np.pi) % (2*np.pi)) - np.pi # bounds the theta degree [-np.pi, np.pi] so for example 3pi = 1pi
+def brysons_rule_Q(x_max, xd_max, th_max_rad, thd_max):
+    # Diagonal with 1/(allowed amplitude)^2
+    return np.diag([1/x_max**2, 1/xd_max**2, 1/th_max_rad**2, 1/thd_max**2])
 
+def brysons_rule_R(u_max):
+    return np.array([[1.0 / (u_max**2)]], dtype=float)
 
-"""
-    Linear-Quadratic Regulator (LQR) for cart-pole near the upright.
-
-    Workflow:
-      1) Build (A,B) for the plant linearized at upright (theta=0).
-      2) Solve CARE(A,B,Q,R) -> P, then K = R^{-1} B^T P.
-      3) Given state s=[x,xdot,theta,thetadot], compute a wrapped small-angle
-         deviation and apply u = -K * (s - s_ref), then clip to actuator limits.
-
-    Notes:
-      - The angle used in feedback is 'wrapped' so the linear controller always
-        sees a small angle error around 0 (or theta_ref), not e.g. +2π.
-      - If the plant parameters change (M,m,l,g), call `compute_gain()` again.
-      - Q and R are specified in units of the *state deviations* and input.
+class AutoLQR:
+    """
+    Auto-LQR around upright using plant-aware linearization and Bryson defaults.
+    Users can override Q, R or the 'allowed' magnitudes to re-scale sensitivity.
     """
 
-class LQRController:
-    def __init__(self, system, Q=None, R=None, force_limit=30, use_numeric=False,
-                 x_ref=0.0, theta_ref=0.0):
-
+    def __init__(self, system,
+                 x_max=0.25, xd_max=2.0,
+                 theta_max_deg=8.0, thetad_max=4.0,
+                 u_max=20.0,
+                 Q=None, R=None):
         self.system = system
+        self.A, self.B = linearize_upright(system, include_damping=True, include_pivot_input=False)
 
-        self.Q = np.diag([4.0, 0.12, 50.0, 2.0]) if Q is None else Q # state weight matrix [x, x_dot, theta, theta_dot] important
-        self.R = np.array([[0.01]]) if R is None else R # control weight matrix
+        if Q is None:
+            Q = brysons_rule_Q(x_max, xd_max, np.deg2rad(theta_max_deg), thetad_max)
+        if R is None:
+            R = brysons_rule_R(u_max)
 
-        self.x_ref = x_ref
-        self.theta_ref = np.deg2rad(theta_ref)
+        self.Q = np.array(Q, dtype=float)
+        self.R = np.array(R, dtype=float)
+        self.K = self._solve_lqr(self.A, self.B, self.Q, self.R)
 
-        self.F_max = force_limit
-        self.K = None
-        self.compute_gain()
+        self.force_limit = float(u_max)
+        self.x_ref = 0.0
+        self.theta_ref = 0.0
 
-        self.x_ref_target = 0.0  # Where we ultimately want to go (usually 0)
-        self.x_ref_tau = 5.0  # Time constant (seconds) for drifting
-        self.last_t = None
-
-    def compute_gain(self):
-        A, B = ideal_AB(self.system.M, self.system.m, self.system.l, self.system.g)
-
-        P = solve_continuous_are(A, B, self.Q, self.R) #Solves the continuous-time algebraic Riccati equation
-        # @ is the operator for multiplying matixes
-        self.K = np.linalg.inv(self.R) @ B.T @ P # Matrix multiplication K is [1x4]
-
-    """def update_x_reff(self, t):
-        if self.last_t is None:
-            self.last_t = t
-            return
-
-        delta_t = t - self.last_t
-
-        delta_t = max(1e-6, min(delta_t, 0.1))
-
-        alpha = delta_t / max(self.x_ref_tau, 1e-6)
-        self.x_ref = (1 - alpha) * self.x_ref + alpha * self.x_ref_target"""
+    @staticmethod
+    def _solve_lqr(A, B, Q, R):
+        P = solve_continuous_are(A, B, Q, R)
+        return np.linalg.inv(R) @ (B.T @ P)  # (1x4)
 
     def cart_force(self, t, state):
-        #self.update_x_reff(t)
         x, x_dot, theta, theta_dot = state
+        theta_err = ((theta + np.pi) % (2*np.pi)) - np.pi  # wrap
+        dx = np.array([x - self.x_ref, x_dot, theta_err - self.theta_ref, theta_dot], dtype=float)
+        u = float(-self.K @ dx)
+        return float(np.clip(u, -self.force_limit, self.force_limit))
 
-        theta_wrapped = wrap_to_pi(theta=(theta - self.theta_ref))
-
-        current_state_array = np.array([x - self.x_ref, x_dot, theta_wrapped, theta_dot])
-
-
-
-        u = float(-self.K @ current_state_array) # u is the Cart force
-
-        return np.clip(u, -self.F_max, self.F_max)
-
+    def retune(self, **plant_changes):
+        """
+        Optional helper: update plant params then recompute A,B and K.
+        e.g., retune(m=0.25, l=0.35)
+        """
+        for k, v in plant_changes.items():
+            setattr(self.system, k, v)
+        # recompute derived inertia if needed
+        if hasattr(self.system, "Ic") and hasattr(self.system, "lc"):
+            self.system.Ip = float(self.system.Ic + self.system.m * (self.system.lc**2))
+        self.A, self.B = linearize_upright(self.system, include_damping=True, include_pivot_input=False)
+        self.K = self._solve_lqr(self.A, self.B, self.Q, self.R)
