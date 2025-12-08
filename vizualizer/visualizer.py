@@ -33,8 +33,8 @@ class MatplotlibVisualizer:
             self.bobs.append(bob)
 
         # Need to changed to automaticaly being centered around system
-        self.ax.set_xlim(-2, 2)
-        self.ax.set_ylim(-2, 2)
+        self.ax.set_xlim(-1, 1)
+        self.ax.set_ylim(-1, 1)
         self.ax.set_aspect('equal')
 
 
@@ -128,7 +128,7 @@ class MatplotlibVisualizer:
             from matplotlib.animation import PillowWriter
             writer = PillowWriter(fps=fps)
             ani.save("animation.gif", writer=writer)
-            print(f"Animation saved as '{"GIF"}'")
+            print(f"Animation saved as ")
 
         plt.show()
 

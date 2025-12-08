@@ -1,21 +1,21 @@
 # main.py (simple toggle version)
 
-from core.simulator import Simulator
-from systems import Pendulum, DoublePendulum, VanDerPol, DCMotor, MotorWrapper
+from dss.core.simulator import Simulator
+from dss.models import Pendulum, DoublePendulum, VanDerPol, DCMotor, MotorWrapper
 import numpy as np
 
 # If you actually use the inverted-pendulum stack, uncomment these:
-from inverted_pendulum.controllers.lqr_controller import LQRController
-from inverted_pendulum.controllers.swingup import EnergySwingUp
-from inverted_pendulum.controllers.simple_switcher import SimpleSwitcher
-from inverted_pendulum.closed_lood_cart import CloseLoopCart
-from inverted_pendulum.inverted_pendulum import InvertedPendulum
+from dss.controllers.lqr_controller import AutoLQR
+from dss.controllers.swingup import AutoSwingUp
+from dss.controllers import AutoSwitcher
+from dss.wrappers.closed_lood_cart import CloseLoopCart
+from dss.models.inverted_pendulum import InvertedPendulum
 
 # =======================
 # PICK WHAT TO SIMULATE:
 # =======================
 SYSTEM = "inverted"   # options: "pendulum", "double", "vdp", "inverted"
-MODE = "dc_driven"        # for pendulum/double: "ideal", "damped", "driven", "dc_driven"
+MODE = "ideal"    # for pendulum/double: "ideal", "damped", "driven", "dc_driven"
 
 
 # Quick params you can tweak
@@ -65,16 +65,42 @@ def build_vdp():
     van = VanDerPol()
     x0 = [1.0, 0.0]
     return van, np.array(x0, float)
-
+80
 def build_inverted():
-    # Uncomment the imports at the top if you use this
-    inv = InvertedPendulum(mode="ideal")
-    lqr = LQRController(system=inv)
-    swing = EnergySwingUp(system=inv)
-    switch = SimpleSwitcher(system=inv, lqr_controller=lqr, swingup_controller=swing)
-    cart = CloseLoopCart(system=inv, controller=switch)
-    x0 = [0.0, 0.0, np.pi, 0.0]
-    return cart, np.array(x0, float)
+    """
+    Inverted pendulum (cart–pole) with auto swing-up → LQR handoff.
+    - Plant runs with damping so physics are realistic.
+    - Controllers auto-tune from the current plant parameters, but remain tweakable.
+    - Initial state is pendulum DOWN (theta=pi) so swing-up has something to do.
+    """
+    # Pick a sensible plant mode (accept external actuation in all modes).
+    inv_mode = {
+        "ideal":        "ideal",
+        "damped_cart":  "damped_cart",
+        "damped_pend":  "damped_pend",
+        "damped_both":  "damped_both",
+        "driven":       "driven",
+        "dc_driven":    "damped_both",  # dc_driven ≈ damped plant + external inputs
+    }.get(MODE, "damped_both")
+
+    inv = InvertedPendulum(
+        mode=inv_mode,
+        l=0.30, m=0.20, cart_mass=0.50, g=9.81,
+        mass_model="point",      # try "point" vs "uniform"
+        b_cart=0.12, b_pend=0.02,  # viscous friction (Coulomb optional via coulomb_cart/coulomb_pend)
+    )
+
+    # Auto controllers (good defaults; still tweakable)
+    lqr   = AutoLQR(inv)                    # or AutoLQR(inv, Q=..., R=..., u_max=...)
+    swing = AutoSwingUp(inv)                # or AutoSwingUp(inv, ke=..., kv=..., force_limit=...)
+    policy = AutoSwitcher(inv, lqr, swing)
+
+    # Close the loop (controller → plant)
+    cart = CloseLoopCart(system=inv, controller=policy)
+
+    # Start with pendulum DOWN
+    x0 = np.array([0.0, 0.0, np.pi, 0.0], dtype=float)  # [x, x_dot, theta, theta_dot]
+    return cart, x0
 
 def pick():
     if SYSTEM == "pendulum": return build_pendulum()
