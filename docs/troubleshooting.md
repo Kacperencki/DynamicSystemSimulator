@@ -13,7 +13,12 @@ cd path/to/project_root
 streamlit run apps/streamlit/app.py
 ```
 
-The entrypoint already inserts the project root into `sys.path`, but it relies on the correct file location.
+Recommended fix (most robust): install in editable mode, then rerun Streamlit:
+
+```bash
+python -m pip install -e .
+streamlit run apps/streamlit/app.py
+```
 
 ## Plots look “cut off” / not full width in Streamlit
 
@@ -43,9 +48,11 @@ Try:
 - use tighter tolerances (`rtol`, `atol`) or a different method (e.g., `Radau` for stiff systems),
 - shorten `T` to localize the issue.
 
-## `dss/core/simulator.py` import error (`vizualizer`)
+## `dss/core/simulator.py` (what it is)
 
-That file references `vizualizer.visualizer.MatplotlibVisualizer`, which is not included.
+`dss/core/simulator.py` is a lightweight wrapper around the solver that returns SciPy solutions.
+Visualization is provided by the Streamlit GUI.
+
 Use:
 - Streamlit GUI, or
 - direct solver usage (`dss/core/solver.py`).

@@ -35,10 +35,10 @@ It computes:
 - motor torque delivered to the plant,
 - forwards into `plant.dynamics(t, plant_state, tau_drive)`.
 
-### CloseLoopCart (`closed_lood_cart.py`)
+### ClosedLoopCart (`closed_loop_cart.py`)
 
 Wraps a cart–pole plant with a controller object exposing a method like `cart_force(t, state)`.
 
 The wrapper’s `dynamics` calls the controller to compute input force, then calls the plant dynamics.
 
-Note: filename contains a typo (`closed_lood_cart.py`); keep this in mind when importing.
+Note: filename contains a typo (`closed_loop_cart.py`); keep this in mind when importing.

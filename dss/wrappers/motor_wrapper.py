@@ -27,7 +27,8 @@ class MotorWrapper:
         omega_m = self.N * omega_port
 
         # 2) motor electrical ODE
-        di_dt = (self.motor.voltage_func - self.motor.R * i - self.motor.Ke * omega_m) / self.motor.L
+        V = self.motor.voltage_func(t) if callable(self.motor.voltage_func) else float(self.motor.voltage_func)
+        di_dt = (V - self.motor.R * i - self.motor.Ke * omega_m) / self.motor.L
 
         # 3) torque delivered to plant through gear
         tau_drive = self.eta * self.N * (self.motor.Kt * i)

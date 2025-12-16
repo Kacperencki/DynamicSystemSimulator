@@ -1,50 +1,64 @@
-/* Remove the top white header bar (Deploy + menu) */
+/* =========================
+   GLOBAL: remove Streamlit chrome
+   ========================= */
 header[data-testid="stHeader"] { display: none !important; }
 div[data-testid="stToolbar"] { display: none !important; }
-div[data-testid="stDecoration"] { display: none !important; }  /* thin top line */
+div[data-testid="stDecoration"] { display: none !important; }
 #MainMenu { display: none !important; }
 footer { display: none !important; }
 
-/* Optional: reclaim a bit of vertical space */
-div[data-testid="stAppViewContainer"] .block-container{
-  padding-top: 0.75rem !important;
-}
-
-
-/* Full-width page (keep) */
+/* =========================
+   GLOBAL: full-width page + compact top padding
+   ========================= */
 div[data-testid="stAppViewContainer"] .block-container{
   max-width: 100% !important;
+  padding-top: 0.60rem !important;
   padding-left: 1.25rem !important;
   padding-right: 1.25rem !important;
 }
 
-/* ---------- LEFT PANEL COMPACT THEME (only left column) ---------- */
-div[data-testid="column"]:has(#controls-anchor),
-div[data-testid="stColumn"]:has(#controls-anchor){
-  --ui-font: 0.84rem;
-  --ui-label: 0.78rem;
-  --ui-gap: 0.35rem;
-  --ui-h: 32px;
-  --ui-btn-h: 30px;
+
+/* ============================================================
+   LEFT PANEL COMPACT THEME
+   Scope: the container created by st.container(key="controls", ...)
+   ============================================================ */
+
+.st-key-controls{
+  /* knobs you can change live */
+  --ui-font: 0.78rem;
+  --ui-label: 0.72rem;
+  --ui-gap: 0.18rem;
+  --ui-h: 28px;
+  --ui-btn-h: 26px;
+
+  --ui-exp-h: 24px;
+  --ui-exp-pad-y: 0.08rem;
+  --ui-exp-pad-x: 0.45rem;
+
   font-size: var(--ui-font) !important;
+  line-height: 1.15 !important;
 }
 
-/* Reduce vertical gaps between widgets */
-div[data-testid="column"]:has(#controls-anchor) div[data-testid="stElementContainer"],
-div[data-testid="stColumn"]:has(#controls-anchor) div[data-testid="stElementContainer"]{
-  margin-bottom: var(--ui-gap) !important;
+/* This is the main “space between blocks” control */
+.st-key-controls [data-testid="stVerticalBlock"]{
+  gap: var(--ui-gap) !important;
 }
 
-/* Labels smaller + tighter */
-div[data-testid="column"]:has(#controls-anchor) [data-testid="stWidgetLabel"],
-div[data-testid="stColumn"]:has(#controls-anchor) [data-testid="stWidgetLabel"]{
+/* Remove extra spacing per widget container */
+.st-key-controls div[data-testid="stElementContainer"]{
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+/* Labels */
+.st-key-controls [data-testid="stWidgetLabel"]{
   font-size: var(--ui-label) !important;
-  margin-bottom: 0.10rem !important;
+  margin-bottom: 0.05rem !important;
+  line-height: 1.05 !important;
 }
 
-/* Buttons smaller */
-div[data-testid="column"]:has(#controls-anchor) [data-testid="stButton"] button,
-div[data-testid="stColumn"]:has(#controls-anchor) [data-testid="stButton"] button{
+/* Buttons */
+.st-key-controls [data-testid="stButton"] button{
   min-height: var(--ui-btn-h) !important;
   height: var(--ui-btn-h) !important;
   padding: 0.10rem 0.55rem !important;
@@ -52,40 +66,36 @@ div[data-testid="stColumn"]:has(#controls-anchor) [data-testid="stButton"] butto
   line-height: 1 !important;
 }
 
-/* Selectbox / multiselect (BaseWeb) height + font */
-div[data-testid="column"]:has(#controls-anchor) [data-baseweb="select"] > div,
-div[data-testid="stColumn"]:has(#controls-anchor) [data-baseweb="select"] > div{
+/* Selectbox / multiselect */
+.st-key-controls [data-baseweb="select"] > div{
   min-height: var(--ui-h) !important;
   font-size: var(--ui-font) !important;
 }
-div[data-testid="column"]:has(#controls-anchor) [data-baseweb="select"] input,
-div[data-testid="stColumn"]:has(#controls-anchor) [data-baseweb="select"] input{
+.st-key-controls [data-baseweb="select"] input{
   font-size: var(--ui-font) !important;
 }
 
-/* Text/number inputs (BaseWeb + native) */
-div[data-testid="column"]:has(#controls-anchor) [data-baseweb="input"] > div,
-div[data-testid="stColumn"]:has(#controls-anchor) [data-baseweb="input"] > div{
+/* Inputs */
+.st-key-controls [data-baseweb="input"] > div{
   min-height: var(--ui-h) !important;
 }
-div[data-testid="column"]:has(#controls-anchor) input,
-div[data-testid="column"]:has(#controls-anchor) textarea,
-div[data-testid="stColumn"]:has(#controls-anchor) input,
-div[data-testid="stColumn"]:has(#controls-anchor) textarea{
+.st-key-controls input,
+.st-key-controls textarea{
   font-size: var(--ui-font) !important;
+  line-height: 1.1 !important;
 }
 
-/* Expanders: smaller header + tighter content padding */
-div[data-testid="column"]:has(#controls-anchor) details > summary,
-div[data-testid="stColumn"]:has(#controls-anchor) details > summary,
-div[data-testid="column"]:has(#controls-anchor) [data-testid="stExpander"] summary,
-div[data-testid="stColumn"]:has(#controls-anchor) [data-testid="stExpander"] summary{
-  padding: 0.12rem 0.45rem !important;
-  min-height: var(--ui-h) !important;
-  font-size: var(--ui-font) !important;
+/* Expanders */
+.st-key-controls [data-testid="stExpander"]{
+  margin: 0 0 0.10rem 0 !important;
 }
-div[data-testid="column"]:has(#controls-anchor) [data-testid="stExpanderDetails"],
-div[data-testid="stColumn"]:has(#controls-anchor) [data-testid="stExpanderDetails"]{
-  padding-top: 0.25rem !important;
-  padding-bottom: 0.25rem !important;
+.st-key-controls [data-testid="stExpander"] summary{
+  padding: var(--ui-exp-pad-y) var(--ui-exp-pad-x) !important;
+  min-height: var(--ui-exp-h) !important;
+}
+.st-key-controls [data-testid="stExpanderDetails"]{
+  padding: 0.18rem 0.45rem 0.25rem 0.45rem !important;
+}
+.st-key-controls [data-testid="stExpanderDetails"] [data-testid="stVerticalBlock"]{
+  gap: 0.22rem !important;
 }

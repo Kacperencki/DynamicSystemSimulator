@@ -14,7 +14,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from dss.models import InvertedPendulum
-from dss.wrappers.closed_lood_cart import CloseLoopCart
+from dss.wrappers.closed_loop_cart import CloseLoopCart
 from dss.controllers import AutoLQR, AutoSwingUp
 from dss.core.experiments import run_simulation_with_diagnostics
 from dss.core.logger import SimulationLogger

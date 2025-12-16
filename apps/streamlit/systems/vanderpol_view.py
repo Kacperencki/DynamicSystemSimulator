@@ -1,12 +1,19 @@
 from __future__ import annotations
 
-from typing import Dict, Any, Tuple
-import numpy as np
+from typing import Any, Dict, Tuple
+
 import streamlit as st
 
 from apps.streamlit.layout import SystemSpec
+from apps.streamlit.components.ui_sections import (
+    SliderSpec,
+    presets_selector,
+    run_clear_row_form,
+    simulation_time,
+    solver_settings,
+    animation_performance,
+)
 from apps.streamlit.runners.vanderpol_runner import run_vanderpol
-from apps.streamlit.components.controls_common import reset_defaults_button
 from apps.streamlit.components.dashboards.vanderpol_dashboard import make_vanderpol_dashboard
 
 Cfg = Dict[str, Any]
@@ -15,55 +22,72 @@ Controls = Dict[str, Any]
 
 
 RESET_KEYS = [
+    "preset",
     "L", "C", "mu",
     "v0", "iL0",
     "t0", "t1", "dt",
-    "fps_anim", "max_frames",
-    "trail_on", "trail_max_points",
-    "max_plot_pts",
+    "solver_method", "rtol", "atol",
+    "fps_anim", "max_frames", "trail_on", "trail_max_points", "max_plot_pts",
 ]
+
+PRESETS: Dict[str, Dict[str, Any]] = {
+    "Default": dict(
+        L=1.0, C=1.0, mu=2.0,
+        v0=1.0, iL0=0.0,
+        t0=0.0, t1=30.0, dt=0.01,
+        solver_method="RK45", rtol=1e-4, atol=1e-6,
+        fps_anim=30, max_frames=600, max_plot_pts=4000,
+        trail_on=True, trail_max_points=260,
+    ),
+    "Relaxation oscillation": dict(
+        L=1.0, C=1.0, mu=8.0,
+        v0=0.2, iL0=0.0,
+        t0=0.0, t1=60.0, dt=0.01,
+        solver_method="Radau", rtol=1e-5, atol=1e-7,
+        fps_anim=30, max_frames=800, max_plot_pts=6000,
+        trail_on=True, trail_max_points=300,
+    ),
+}
 
 
 def controls(prefix: str) -> Controls:
-    c1, c2 = st.columns([1, 1])
-    with c1:
-        run_clicked = st.button("Run", key=f"{prefix}_run", type="primary", width='stretch')
-    with c2:
-        reset_defaults_button(prefix, RESET_KEYS, label="Reset")
+    presets_selector(prefix, PRESETS, label="Preset", default_name="Default")
 
-    with st.expander("Circuit parameters", expanded=False):
-        r1, r2, r3 = st.columns(3)
-        with r1:
-            L = st.number_input("L [H]", value=1.0, min_value=0.0, key=f"{prefix}_L")
-        with r2:
-            C = st.number_input("C [F]", value=1.0, min_value=0.0, key=f"{prefix}_C")
-        with r3:
-            mu = st.number_input("μ", value=1.0, key=f"{prefix}_mu")
+    with st.form(key=f"{prefix}_form"):
+        run_clicked = run_clear_row_form(prefix, RESET_KEYS, clear_label="Clear")
 
-    with st.expander("Initial state", expanded=False):
-        i1, i2 = st.columns(2)
-        with i1:
-            v0 = st.number_input("v(0) [V]", value=2.0, key=f"{prefix}_v0")
-        with i2:
-            iL0 = st.number_input("iL(0) [A]", value=0.0, key=f"{prefix}_iL0")
+        with st.expander("System parameters", expanded=False):
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                L = st.number_input("L", value=1.0, min_value=1e-9, format="%.6g", key=f"{prefix}_L")
+            with c2:
+                C = st.number_input("C", value=1.0, min_value=1e-9, format="%.6g", key=f"{prefix}_C")
+            with c3:
+                mu = st.number_input("μ", value=2.0, min_value=0.0, format="%.6g", key=f"{prefix}_mu")
 
-    with st.expander("Simulation time", expanded=False):
-        t1c1, t1c2, t1c3 = st.columns(3)
-        with t1c1:
-            t0 = st.number_input("t₀ [s]", value=0.0, key=f"{prefix}_t0")
-        with t1c2:
-            t1 = st.number_input("t₁ [s]", value=40.0, min_value=0.0, key=f"{prefix}_t1")
-        with t1c3:
-            dt = st.number_input("Δt [s]", value=0.01, min_value=1e-5, step=0.001, format="%.6f", key=f"{prefix}_dt")
+        with st.expander("Initial state", expanded=False):
+            c1, c2 = st.columns(2)
+            with c1:
+                v0 = st.number_input("v(0)", value=1.0, format="%.6g", key=f"{prefix}_v0")
+            with c2:
+                iL0 = st.number_input("i_L(0)", value=0.0, format="%.6g", key=f"{prefix}_iL0")
 
-    with st.expander("Animation / performance", expanded=False):
-        fps_anim = st.slider("Animation FPS", 10, 60, 30, 5, key=f"{prefix}_fps_anim")
-        max_frames = st.slider("Max frames", 120, 800, 360, 20, key=f"{prefix}_max_frames")
+        t0, t1, dt = simulation_time(prefix, expanded=False, t0_default=0.0, t1_default=30.0, dt_default=0.01, dt_min=1e-5, dt_step=0.001, dt_format="%.6f")
 
-        trail_on = st.checkbox("Show tail in phase portrait", value=False, key=f"{prefix}_trail_on")
-        trail_max_points = st.slider("Tail points", 50, 800, 240, 10, key=f"{prefix}_trail_max_points")
+        solver = solver_settings(prefix, expanded=False)
 
-        max_plot_pts = st.slider("Plot points (downsample)", 400, 8000, 2400, 200, key=f"{prefix}_max_plot_pts")
+        perf = animation_performance(
+            prefix,
+            title="Animation / performance",
+            expanded=False,
+            layout="single",
+            fps=SliderSpec("Animation FPS", 10, 60, 30, 5),
+            max_frames=SliderSpec("Max frames", 200, 1200, 600, 20),
+            max_plot_pts=SliderSpec("Plot points (downsample)", 600, 12000, 5000, 200),
+            trail_default=True,
+            trail_checkbox_label="Show trajectory tail",
+            trail_max_points=SliderSpec("Tail max points", 50, 600, 260, 10),
+        )
 
     return dict(
         run_clicked=run_clicked,
@@ -75,24 +99,28 @@ def controls(prefix: str) -> Controls:
         t0=float(t0),
         t1=float(t1),
         dt=float(dt),
-        fps_anim=int(fps_anim),
-        max_frames=int(max_frames),
-        trail_on=bool(trail_on),
-        trail_max_points=int(trail_max_points),
-        max_plot_pts=int(max_plot_pts),
+        **solver,
+        **perf,
     )
 
 
 def run(controls: Controls) -> Tuple[Cfg, Out]:
     params = dict(L=controls["L"], C=controls["C"], mu=controls["mu"])
     ic = dict(v0=controls["v0"], iL0=controls["iL0"])
-    return run_vanderpol(params, ic, controls["t0"], controls["t1"], controls["dt"])
+    return run_vanderpol(
+        params,
+        ic,
+        controls["t0"],
+        controls["t1"],
+        controls["dt"],
+        method=controls["solver_method"],
+        rtol=controls["rtol"],
+        atol=controls["atol"],
+    )
 
 
 def caption(cfg: Cfg, out: Out) -> str:
-    T = np.asarray(out.get("T", []), dtype=float)
-    dt_eff = float(np.mean(np.diff(T))) if len(T) > 1 else float(cfg.get("dt", 0.01))
-    return f"Δt ≈ {dt_eff:.6f} s · N = {len(T)}"
+    return f"N = {len(out['T'])}"
 
 
 def make_dashboard(cfg: Cfg, out: Out, ui: Controls):

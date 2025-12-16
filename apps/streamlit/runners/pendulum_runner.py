@@ -1,21 +1,27 @@
 # apps/streamlit/runners/pendulum_runner.py
 
-import sys
-from pathlib import Path
+from __future__ import annotations
+
 from typing import Dict, Tuple
 
 import numpy as np
-
-ROOT = Path(__file__).resolve().parents[2]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
 
 from dss.models.pendulum import Pendulum
 from dss.models.double_pendulum import DoublePendulum
 from dss.core.solver import Solver
 
 
-def run_single_pendulum(params: Dict, ic: Dict, t0: float, t1: float, dt: float) -> Tuple[Dict, Dict]:
+def run_single_pendulum(
+    params: Dict,
+    ic: Dict,
+    t0: float,
+    t1: float,
+    dt: float,
+    *,
+    method: str = "RK45",
+    rtol: float = 1e-4,
+    atol: float = 1e-6,
+) -> Tuple[Dict, Dict]:
     L, m, g = params["L"], params["m"], params["g"]
     mode = params["mode"]
     b, A, w, phi = params["b"], params["A"], params["w"], params["phi"]
@@ -38,7 +44,15 @@ def run_single_pendulum(params: Dict, ic: Dict, t0: float, t1: float, dt: float)
         gravity=g,
     )
 
-    sol = Solver(pend, initial_conditions=[theta0, omega0], T=T_total, fps=fps_eff).run()
+    sol = Solver(
+        pend,
+        initial_conditions=[theta0, omega0],
+        T=T_total,
+        fps=fps_eff,
+        method=str(method),
+        rtol=float(rtol),
+        atol=float(atol),
+    ).run()
     T = sol.t
     X = sol.y.T
     KE, PE, E = pend.energy_check(X.T)
@@ -46,6 +60,9 @@ def run_single_pendulum(params: Dict, ic: Dict, t0: float, t1: float, dt: float)
     cfg = dict(
         sys="single",
         mode=mode,
+        solver_method=str(method),
+        rtol=float(rtol),
+        atol=float(atol),
         g=g,
         L=L,
         m=m,
@@ -64,7 +81,17 @@ def run_single_pendulum(params: Dict, ic: Dict, t0: float, t1: float, dt: float)
     return cfg, out
 
 
-def run_double_pendulum(params: Dict, ic: Dict, t0: float, t1: float, dt: float) -> Tuple[Dict, Dict]:
+def run_double_pendulum(
+    params: Dict,
+    ic: Dict,
+    t0: float,
+    t1: float,
+    dt: float,
+    *,
+    method: str = "RK45",
+    rtol: float = 1e-4,
+    atol: float = 1e-6,
+) -> Tuple[Dict, Dict]:
     l1, m1, l2, m2, g = params["l1"], params["m1"], params["l2"], params["m2"], params["g"]
     mode = params["mode"]
     b1, b2 = params["b1"], params["b2"]
@@ -98,7 +125,15 @@ def run_double_pendulum(params: Dict, ic: Dict, t0: float, t1: float, dt: float)
         mass_model="uniform",
     )
 
-    sol = Solver(dp, initial_conditions=[th1_0, w1_0, th2_0, w2_0], T=T_total, fps=fps_eff).run()
+    sol = Solver(
+        dp,
+        initial_conditions=[th1_0, w1_0, th2_0, w2_0],
+        T=T_total,
+        fps=fps_eff,
+        method=str(method),
+        rtol=float(rtol),
+        atol=float(atol),
+    ).run()
     T = sol.t
     X = sol.y.T
 
@@ -112,6 +147,9 @@ def run_double_pendulum(params: Dict, ic: Dict, t0: float, t1: float, dt: float)
     cfg = dict(
         sys="double",
         mode=mode,
+        solver_method=str(method),
+        rtol=float(rtol),
+        atol=float(atol),
         g=g,
         l1=l1,
         m1=m1,

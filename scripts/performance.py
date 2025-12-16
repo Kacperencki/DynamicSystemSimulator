@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 
 from dss.models.pendulum import Pendulum          # :contentReference[oaicite:1]{index=1}
 from dss.models.double_pendulum import DoublePendulum  # :contentReference[oaicite:2]{index=2}
-from dss.models.vanderpoll_circuit import VanDerPol    # :contentReference[oaicite:3]{index=3}
+from dss.models.vanderpol_circuit import VanDerPol    # :contentReference[oaicite:3]{index=3}
 from dss.models.dc_motor import DCMotor                # :contentReference[oaicite:4]{index=4}
 from dss.models.inverted_pendulum import InvertedPendulum  # :contentReference[oaicite:5]{index=5}
 

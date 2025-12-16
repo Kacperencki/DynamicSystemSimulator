@@ -1,11 +1,11 @@
 # Installation
 
-This project is designed to run directly from the repository without packaging.
+This project is intended to be installed in editable mode (recommended) so imports work consistently in Streamlit, scripts, and IDEs.
 
 ## Requirements
 
 - Python 3.10+ recommended
-- Dependencies are listed in `requirements.txt`
+- Dependencies are defined in `pyproject.toml` (legacy `requirements.txt` is kept for reference).
 
 Install:
 
@@ -17,7 +17,8 @@ python -m venv .venv
 source .venv/bin/activate
 
 python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
+python -m pip install -e .
+# optional (dev tools): python -m pip install -e ".[dev]"
 ```
 
 ## Running the GUI

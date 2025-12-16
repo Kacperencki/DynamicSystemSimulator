@@ -1,26 +1,27 @@
+from __future__ import annotations
+
 import numpy as np
 from scipy.linalg import solve_continuous_are
+
 from dss.controllers.linearize import linearize_upright
+from dss.utils.angles import wrap_to_pi
 
 
 def brysons_rule_Q(x_max, xd_max, th_max_rad, thd_max):
     """Diagonal Q via Bryson's rule: 1/(allowed amplitude)^2."""
-    return np.diag([
-        1.0 / x_max**2,
-        1.0 / xd_max**2,
-        1.0 / th_max_rad**2,
-        1.0 / thd_max**2,
-    ])
+    return np.diag(
+        [
+            1.0 / (float(x_max) ** 2),
+            1.0 / (float(xd_max) ** 2),
+            1.0 / (float(th_max_rad) ** 2),
+            1.0 / (float(thd_max) ** 2),
+        ]
+    )
 
 
 def brysons_rule_R(u_max):
     """Scalar R via Bryson's rule."""
-    return np.array([[1.0 / (u_max**2)]], dtype=float)
-
-
-def wrap_to_pi(th: float) -> float:
-    """Map any angle to (-π, π]."""
-    return ((th + np.pi) % (2.0 * np.pi)) - np.pi
+    return np.array([[1.0 / (float(u_max) ** 2)]], dtype=float)
 
 
 class AutoLQR:
@@ -33,8 +34,7 @@ class AutoLQR:
     Control law:
         u = -K · [x - x_ref, x_dot, theta_err - theta_ref, theta_dot]^T
 
-    where:
-        theta_err is theta wrapped to (-π, π].
+    theta_err is wrapped to (-pi, pi].
     """
 
     def __init__(
@@ -49,6 +49,7 @@ class AutoLQR:
         R=None,
     ):
         self.system = system
+
         # Linearization around upright, cart force only
         self.A, self.B = linearize_upright(
             system,
@@ -69,7 +70,7 @@ class AutoLQR:
         self.Q = np.array(Q, dtype=float)
         self.R = np.array(R, dtype=float)
 
-        self.K = self._solve_lqr(self.A, self.B, self.Q, self.R)
+        self.K = self._solve_lqr(self.A, self.B, self.Q, self.R)  # (1x4)
 
         self.force_limit = float(u_max)
         self.x_ref = 0.0
@@ -78,16 +79,18 @@ class AutoLQR:
     @staticmethod
     def _solve_lqr(A, B, Q, R):
         P = solve_continuous_are(A, B, Q, R)
-        return np.linalg.inv(R) @ (B.T @ P)  # (1x4)
+        return np.linalg.solve(R, B.T @ P)  # (1x4)
 
     def cart_force(self, t, state):
         x, x_dot, theta, theta_dot = state
         theta_err = wrap_to_pi(float(theta))
+
         dx = np.array(
-            [x - self.x_ref, x_dot, theta_err - self.theta_ref, theta_dot],
+            [float(x) - self.x_ref, float(x_dot), theta_err - self.theta_ref, float(theta_dot)],
             dtype=float,
         )
-        u = float(-self.K @ dx)
+
+        u = float(-(self.K @ dx.reshape(4, 1))[0, 0])
         return float(np.clip(u, -self.force_limit, self.force_limit))
 
     def retune(self, **plant_changes):
@@ -100,11 +103,11 @@ class AutoLQR:
 
         # recompute derived inertia if needed
         if hasattr(self.system, "Ic") and hasattr(self.system, "lc"):
-            self.system.Ip = float(
-                self.system.Ic + self.system.m * (self.system.lc**2)
-            )
+            self.system.Ip = float(self.system.Ic + self.system.m * (self.system.lc**2))
 
         self.A, self.B = linearize_upright(
-            self.system, include_damping=True, include_pivot_input=False
+            self.system,
+            include_damping=True,
+            include_pivot_input=False,
         )
         self.K = self._solve_lqr(self.A, self.B, self.Q, self.R)

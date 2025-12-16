@@ -6,26 +6,11 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
+from apps.streamlit.components.dashboards._common import downsample_idx, pad_range
 Cfg = Dict[str, Any]
 Out = Dict[str, Any]
 
 
-def _downsample_idx(n: int, max_pts: int) -> np.ndarray:
-    if n <= 0:
-        return np.array([], dtype=int)
-    if max_pts <= 0 or n <= max_pts:
-        return np.arange(n, dtype=int)
-    return np.linspace(0, n - 1, max_pts, dtype=int)
-
-
-def _pad_range(y: np.ndarray) -> Tuple[float, float]:
-    y0 = float(np.min(y))
-    y1 = float(np.max(y))
-    if np.isclose(y0, y1):
-        d = 1.0 if np.isclose(y0, 0.0) else 0.05 * abs(y0)
-        return y0 - d, y1 + d
-    pad = 0.08 * (y1 - y0)
-    return y0 - pad, y1 + pad
 
 
 def make_vanderpol_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go.Figure:
@@ -59,16 +44,16 @@ def make_vanderpol_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go.Figur
 
     duration_ms = int(round(1000.0 / max(1, fps_anim)))
 
-    plot_idx = _downsample_idx(len(T), max_plot_pts)
+    plot_idx = downsample_idx(len(T), max_plot_pts)
     T_p = T[plot_idx]
     v_p = v[plot_idx]
     iL_p = iL[plot_idx]
     dv_p = dv_dt[plot_idx]
 
     # ranges
-    v_min, v_max = _pad_range(v)
-    i_min, i_max = _pad_range(iL)
-    dv_min, dv_max = _pad_range(dv_dt)
+    v_min, v_max = pad_range(v)
+    i_min, i_max = pad_range(iL)
+    dv_min, dv_max = pad_range(dv_dt)
     t_min = float(T[0]) if len(T) else 0.0
     t_max = float(T[-1]) if len(T) else 1.0
 

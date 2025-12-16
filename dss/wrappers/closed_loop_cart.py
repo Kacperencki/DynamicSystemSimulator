@@ -1,6 +1,6 @@
 import numpy as np
 
-class CloseLoopCart:
+class ClosedLoopCart:
     """
     Closed-loop wrapper: inverted pendulum plant + any controller
     that exposes cart_force(t, state).

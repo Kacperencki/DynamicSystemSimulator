@@ -315,7 +315,10 @@ class InvertedPendulum:
         F_eff = F_ext + cart_fric + cart_drive + cart_centripetal
 
         # tau: torque about the pivot
-        tau = m * g * lc * np.sin(theta) - pend_fric - pend_drive - T_ext
+        # pend_fric is already "opposes motion" (negative for +theta_dot), so ADD it.
+        # External / drive torques should also ADD (positive torque increases theta).
+        tau = m*g*lc*np.sin(theta) + pend_fric + pend_drive + T_ext
+
 
         # denominator (determinant of inertia matrix)
         den = (M + m) * Ip - (m * lc * np.cos(theta)) ** 2

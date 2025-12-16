@@ -1,4 +1,4 @@
-# apps/streamlit/animations.py
+# apps/streamlit/components/animations.py
 
 from typing import Dict
 

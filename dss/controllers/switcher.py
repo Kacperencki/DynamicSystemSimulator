@@ -3,9 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 import numpy as np
 import csv
+from dss.utils.angles import wrap_to_pi
 
-def wrap_to_pi(th: float) -> float:
-    return ((th + np.pi) % (2.0 * np.pi)) - np.pi
 
 @dataclass
 class SimpleTuning:
@@ -35,11 +34,11 @@ class AutoSwitcher:
     """
 
     def __init__(self, system, lqr_controller, swingup_controller,
-                 tuning: SimpleTuning = SimpleTuning(), verbose: bool = False):
+                 tuning: SimpleTuning | None = None, verbose: bool = False):
         self.sys = system
         self.lqr = lqr_controller
         self.swing = swingup_controller
-        self.cfg = tuning
+        self.cfg = tuning or SimpleTuning()
         self.verbose = bool(verbose)
 
         self.th_full = np.deg2rad(self.cfg.theta_full_deg)

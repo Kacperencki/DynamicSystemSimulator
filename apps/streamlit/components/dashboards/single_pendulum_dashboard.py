@@ -5,16 +5,10 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
+from apps.streamlit.components.dashboards._common import downsample_idx, pad_range
 Cfg = Dict[str, Any]
 Out = Dict[str, Any]
 
-
-def _downsample_idx(n: int, max_pts: int) -> np.ndarray:
-    if n <= 0:
-        return np.array([], dtype=int)
-    if max_pts <= 0 or n <= max_pts:
-        return np.arange(n, dtype=int)
-    return np.linspace(0, n - 1, max_pts, dtype=int)
 
 
 def _tip_xy_vectorized(L: float, theta: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
@@ -22,15 +16,6 @@ def _tip_xy_vectorized(L: float, theta: np.ndarray) -> Tuple[np.ndarray, np.ndar
     py = -L * np.cos(theta)
     return px.astype(float), py.astype(float)
 
-
-def _pad_range(y: np.ndarray) -> Tuple[float, float]:
-    y0 = float(np.min(y))
-    y1 = float(np.max(y))
-    if np.isclose(y0, y1):
-        d = 1.0 if np.isclose(y0, 0.0) else abs(y0) * 0.2
-        return y0 - d, y1 + d
-    d = 0.08 * (y1 - y0)
-    return y0 - d, y1 + d
 
 
 def make_single_pendulum_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go.Figure:
@@ -56,11 +41,11 @@ def make_single_pendulum_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go
         frame_idx = frame_idx[pick]
 
     duration_ms = int(round(1000.0 / max(1, fps_anim)))
-    pidx = _downsample_idx(len(T), max_plot_pts)
+    pidx = downsample_idx(len(T), max_plot_pts)
 
     rng = 1.15 * L
-    th_min, th_max = _pad_range(theta)
-    w_min, w_max = _pad_range(omega)
+    th_min, th_max = pad_range(theta)
+    w_min, w_max = pad_range(omega)
     t_min = float(T[0]) if len(T) else 0.0
     t_max = float(T[-1]) if len(T) else 1.0
 

@@ -1,21 +1,17 @@
-# apps/streamlit/inverted_runner.py
+# apps/streamlit/runners/inverted_runner.py
 
-import sys
-from pathlib import Path
+from __future__ import annotations
+
 from typing import Dict, Tuple
+import inspect
 
 import numpy as np
 
-ROOT = Path(__file__).resolve().parents[2]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
 from dss.models import get_model
-from dss.wrappers.closed_lood_cart import CloseLoopCart
+from dss.wrappers.closed_loop_cart import ClosedLoopCart
 from dss.controllers.lqr_controller import AutoLQR
 from dss.controllers.swingup import AutoSwingUp
 from dss.controllers.simple_switcher import SimpleSwitcher
-
 from dss.core.solver import Solver
 
 
@@ -25,10 +21,12 @@ def run_ip_open(
     t0: float,
     t1: float,
     dt: float,
+    *,
+    method: str = "RK45",
+    rtol: float = 1e-4,
+    atol: float = 1e-6,
 ) -> Tuple[Dict, Dict]:
-    """
-    Open-loop inverted pendulum (no control).
-    """
+    """Open-loop inverted pendulum (no control)."""
     system = get_model(
         "inverted_pendulum",
         mode=params["mode"],
@@ -55,10 +53,7 @@ def run_ip_open(
     T_total = float(t1 - t0)
 
     # target based on dt
-    if dt > 0:
-        fps_target = 1.0 / dt
-    else:
-        fps_target = 100.0
+    fps_target = 1.0 / dt if dt > 0 else 100.0
 
     # hard cap on fps to avoid too many steps
     FPS_CAP = 200.0
@@ -68,7 +63,15 @@ def run_ip_open(
 
     x0, xdot0, th0, thdot0 = ic["x0"], ic["xdot0"], ic["th0"], ic["thdot0"]
 
-    sol = Solver(system, initial_conditions=[x0, xdot0, th0, thdot0], T=T_total, fps=fps_eff).run()
+    sol = Solver(
+        system,
+        initial_conditions=[x0, xdot0, th0, thdot0],
+        T=T_total,
+        fps=fps_eff,
+        method=str(method),
+        rtol=float(rtol),
+        atol=float(atol),
+    ).run()
     T = sol.t
     X = sol.y.T
 
@@ -77,6 +80,9 @@ def run_ip_open(
 
     cfg = dict(
         sys="ip_open",
+        solver_method=str(method),
+        rtol=float(rtol),
+        atol=float(atol),
         **params,
         x0=x0,
         xdot0=xdot0,
@@ -100,15 +106,12 @@ def run_ip_closed(
     t0: float,
     t1: float,
     dt: float,
+    *,
+    method: str = "RK45",
+    rtol: float = 1e-4,
+    atol: float = 1e-6,
 ) -> Tuple[Dict, Dict]:
-    """
-    Closed-loop inverted pendulum: plant + controller via CloseLoopCart.
-
-    ctrl_mode:
-        - "LQR stabilizer"
-        - "Swing-up only"
-        - "Swing-up + LQR (simple)"
-    """
+    """Closed-loop inverted pendulum: plant + controller via ClosedLoopCart."""
     # physical plant
     plant = get_model(
         "inverted_pendulum",
@@ -134,9 +137,6 @@ def run_ip_closed(
     )
 
     # ----- LQR parameter mapping (GUI → AutoLQR) -----------------
-    # GUI gives: q_x, q_xdot, q_theta, q_thetad, r_u, u_max  :contentReference[oaicite:2]{index=2}
-    # AutoLQR wants: x_max, xd_max, theta_max_deg, thetad_max, u_max :contentReference[oaicite:3]{index=3}
-
     def build_lqr():
         q_x = float(lqr_set.get("q_x", 1.0))
         q_xdot = float(lqr_set.get("q_xdot", 1.0))
@@ -171,9 +171,6 @@ def run_ip_closed(
         )
 
     # ----- Swing-up parameter mapping (GUI → AutoSwingUp) --------
-    # GUI gives: k_e, u_max  :contentReference[oaicite:4]{index=4}
-    # AutoSwingUp wants: ke, kv, force_limit, ... :contentReference[oaicite:5]{index=5}
-
     def build_swing():
         k_e = swing_set.get("k_e", None)
         u_max = swing_set.get("u_max", None)
@@ -183,10 +180,9 @@ def run_ip_closed(
             force_limit=u_max,
         )
 
-    # ----- Switcher mapping (GUI → SimpleSwitcher)  -------------- :contentReference[oaicite:6]{index=6}
-
+    # ----- Switcher mapping (GUI → SimpleSwitcher)  --------------
     def build_switch(lqr, swing):
-        return SimpleSwitcher(
+        raw_kwargs = dict(
             system=plant,
             lqr_controller=lqr,
             swingup_controller=swing,
@@ -197,17 +193,21 @@ def run_ip_closed(
             dropout_speed_rad_s=float(switch_set.get("dropout_speed_rad_s", 30.0)),
             dropout_cart_speed=float(switch_set.get("dropout_cart_speed", 10.0)),
             allow_dropout=bool(switch_set.get("allow_dropout", True)),
-            # Smooth transitions (prevents visible kicks at the SWING↔LQR switch)
+            # smooth transitions (optional; kept if supported by the installed class)
             blend_time=float(switch_set.get("blend_time", 0.12)),
             du_max=float(switch_set.get("du_max", 800.0)),
-            # keep the rest at good defaults; turn off spam:
             verbose=False,
         )
+        sig = inspect.signature(SimpleSwitcher.__init__)
+        kwargs = {k: v for k, v in raw_kwargs.items() if k in sig.parameters}
+        return SimpleSwitcher(**kwargs)
 
     # ----- Build controller by mode -------------------------------
-
     if ctrl_mode == "LQR stabilizer":
         lqr = build_lqr()
+        # Stabilize around the current cart position by default (prevents snapping to x=0)
+        if hasattr(lqr, "x_ref"):
+            lqr.x_ref = float(ic.get("x0", 0.0))
         controller = lqr
 
     elif ctrl_mode == "Swing-up only":
@@ -216,29 +216,36 @@ def run_ip_closed(
 
     elif ctrl_mode == "Swing-up + LQR (simple)":
         lqr = build_lqr()
+        # Same idea: when LQR engages, it should hold the current x as reference
+        # (the switcher also sets x_ref on ENTER, but this keeps things consistent)
+        if hasattr(lqr, "x_ref"):
+            lqr.x_ref = float(ic.get("x0", 0.0))
         swing = build_swing()
         controller = build_switch(lqr, swing)
+
     else:
         raise ValueError(f"Unsupported ctrl_mode: {ctrl_mode!r}")
 
-    closed = CloseLoopCart(system=plant, controller=controller)
+    closed = ClosedLoopCart(system=plant, controller=controller)
 
     T_total = float(t1 - t0)
 
-    # target based on dt
-    if dt > 0:
-        fps_target = 1.0 / dt
-    else:
-        fps_target = 100.0
-
-    # hard cap on fps to avoid too many steps
+    fps_target = 1.0 / dt if dt > 0 else 100.0
     FPS_CAP = 200.0
     fps_eff = int(min(fps_target, FPS_CAP))
     if fps_eff < 1:
         fps_eff = 1
 
     x0, xdot0, th0, thdot0 = ic["x0"], ic["xdot0"], ic["th0"], ic["thdot0"]
-    sol = Solver(closed, initial_conditions=[x0, xdot0, th0, thdot0], T=T_total, fps=fps_eff).run()
+    sol = Solver(
+        closed,
+        initial_conditions=[x0, xdot0, th0, thdot0],
+        T=T_total,
+        fps=fps_eff,
+        method=str(method),
+        rtol=float(rtol),
+        atol=float(atol),
+    ).run()
 
     T = sol.t
     X = sol.y.T
@@ -249,6 +256,9 @@ def run_ip_closed(
     cfg = dict(
         sys="ip_closed",
         ctrl_mode=ctrl_mode,
+        solver_method=str(method),
+        rtol=float(rtol),
+        atol=float(atol),
         **params,
         x0=x0,
         xdot0=xdot0,

@@ -59,10 +59,16 @@ def render_system(
 
     # Controls
     with controls_container:
-        controls = spec.controls(prefix)
+        with st.container(key="controls", gap=None):
+            controls = spec.controls(prefix)
 
-    run_clicked = bool(controls.pop("run_clicked", False))
+    controls_raw = controls
 
+    run_clicked = bool(controls_raw.get("run_clicked", False))
+
+    controls = dict(controls_raw)
+
+    controls.pop("run_clicked", None)
     # Session state
     cfg_key = f"{prefix}_cfg"
     out_key = f"{prefix}_out"

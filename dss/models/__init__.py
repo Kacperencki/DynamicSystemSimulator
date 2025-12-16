@@ -4,9 +4,9 @@ from .pendulum import Pendulum
 from .double_pendulum import DoublePendulum
 from .dc_motor import DCMotor
 from dss.wrappers.motor_wrapper import MotorWrapper
-from .vanderpoll_circuit import VanDerPol
+from .vanderpol_circuit import VanDerPol
 
-# Inverted pendulum lives in a separate package, but we expose it here
+# Inverted pendulum is part of DSS, but we expose it here for convenience
 from dss.models.inverted_pendulum import InvertedPendulum
 
 

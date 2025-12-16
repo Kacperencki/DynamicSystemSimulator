@@ -82,7 +82,7 @@ Provides:
 
 ---
 
-## Van der Pol oscillator (`dss/models/vanderpoll_circuit.py`)
+## Van der Pol oscillator (`dss/models/vanderpol_circuit.py`)
 
 Circuit form (parallel LC with nonlinear resistor).
 

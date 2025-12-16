@@ -1,12 +1,19 @@
 from __future__ import annotations
 
-from typing import Dict, Any, Tuple
-import numpy as np
+from typing import Any, Dict, Tuple
+
 import streamlit as st
 
 from apps.streamlit.layout import SystemSpec
+from apps.streamlit.components.ui_sections import (
+    SliderSpec,
+    presets_selector,
+    run_clear_row_form,
+    simulation_time,
+    solver_settings,
+    animation_performance,
+)
 from apps.streamlit.runners.lorenz_runner import run_lorenz
-from apps.streamlit.components.controls_common import reset_defaults_button
 from apps.streamlit.components.dashboards.lorenz_dashboard import make_lorenz_dashboard
 
 Cfg = Dict[str, Any]
@@ -15,57 +22,74 @@ Controls = Dict[str, Any]
 
 
 RESET_KEYS = [
+    "preset",
     "sigma", "rho", "beta",
     "x0", "y0", "z0",
     "t0", "t1", "dt",
-    "fps_anim", "max_frames",
-    "trail_on", "trail_max_points",
-    "max_plot_pts",
+    "solver_method", "rtol", "atol",
+    "fps_anim", "max_frames", "trail_on", "trail_max_points", "max_plot_pts",
 ]
+
+PRESETS: Dict[str, Dict[str, Any]] = {
+    "Default": dict(
+        sigma=10.0, rho=28.0, beta=8.0 / 3.0,
+        x0=1.0, y0=1.0, z0=1.0,
+        t0=0.0, t1=40.0, dt=0.01,
+        solver_method="RK45", rtol=1e-4, atol=1e-6,
+        fps_anim=30, max_frames=700, max_plot_pts=6000,
+        trail_on=True, trail_max_points=280,
+    ),
+    "Less chaotic": dict(
+        sigma=10.0, rho=20.0, beta=8.0 / 3.0,
+        x0=1.0, y0=1.0, z0=1.0,
+        t0=0.0, t1=40.0, dt=0.01,
+        solver_method="RK45", rtol=1e-4, atol=1e-6,
+        fps_anim=30, max_frames=700, max_plot_pts=6000,
+        trail_on=True, trail_max_points=280,
+    ),
+}
 
 
 def controls(prefix: str) -> Controls:
-    c1, c2 = st.columns([1, 1])
-    with c1:
-        run_clicked = st.button("Run", key=f"{prefix}_run", type="primary", width='stretch')
-    with c2:
-        reset_defaults_button(prefix, RESET_KEYS, label="Reset")
+    presets_selector(prefix, PRESETS, label="Preset", default_name="Default")
 
-    with st.expander("System parameters", expanded=False):
-        r1, r2, r3 = st.columns(3)
-        with r1:
-            sigma = st.number_input("σ", value=10.0, min_value=0.0, key=f"{prefix}_sigma")
-        with r2:
-            rho = st.number_input("ρ", value=28.0, min_value=0.0, key=f"{prefix}_rho")
-        with r3:
-            beta = st.number_input("β", value=8.0 / 3.0, min_value=0.0, key=f"{prefix}_beta")
+    with st.form(key=f"{prefix}_form"):
+        run_clicked = run_clear_row_form(prefix, RESET_KEYS, clear_label="Clear")
 
-    with st.expander("Initial state", expanded=False):
-        i1, i2, i3 = st.columns(3)
-        with i1:
-            x0 = st.number_input("x(0)", value=1.0, key=f"{prefix}_x0")
-        with i2:
-            y0 = st.number_input("y(0)", value=1.0, key=f"{prefix}_y0")
-        with i3:
-            z0 = st.number_input("z(0)", value=1.0, key=f"{prefix}_z0")
+        with st.expander("System parameters", expanded=False):
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                sigma = st.number_input("σ", value=10.0, key=f"{prefix}_sigma")
+            with c2:
+                rho = st.number_input("ρ", value=28.0, key=f"{prefix}_rho")
+            with c3:
+                beta = st.number_input("β", value=8.0 / 3.0, key=f"{prefix}_beta")
 
-    with st.expander("Simulation time", expanded=False):
-        t1c1, t1c2, t1c3 = st.columns(3)
-        with t1c1:
-            t0 = st.number_input("t₀ [s]", value=0.0, key=f"{prefix}_t0")
-        with t1c2:
-            t1 = st.number_input("t₁ [s]", value=25.0, min_value=0.0, key=f"{prefix}_t1")
-        with t1c3:
-            dt = st.number_input("Δt [s]", value=0.01, min_value=1e-5, step=0.001, format="%.6f", key=f"{prefix}_dt")
+        with st.expander("Initial state", expanded=False):
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                x0 = st.number_input("x(0)", value=1.0, key=f"{prefix}_x0")
+            with c2:
+                y0 = st.number_input("y(0)", value=1.0, key=f"{prefix}_y0")
+            with c3:
+                z0 = st.number_input("z(0)", value=1.0, key=f"{prefix}_z0")
 
-    with st.expander("Animation / performance", expanded=False):
-        fps_anim = st.slider("Animation FPS", 10, 60, 30, 5, key=f"{prefix}_fps_anim")
-        max_frames = st.slider("Max frames", 150, 900, 450, 25, key=f"{prefix}_max_frames")
+        t0, t1, dt = simulation_time(prefix, expanded=False, t0_default=0.0, t1_default=40.0, dt_default=0.01, dt_min=1e-5, dt_step=0.001, dt_format="%.6f")
 
-        trail_on = st.checkbox("Show trajectory tail (instead of full)", value=True, key=f"{prefix}_trail_on")
-        trail_max_points = st.slider("Tail points", 50, 1200, 350, 25, key=f"{prefix}_trail_max_points")
+        solver = solver_settings(prefix, expanded=False)
 
-        max_plot_pts = st.slider("Plot points (downsample)", 800, 12000, 3000, 200, key=f"{prefix}_max_plot_pts")
+        perf = animation_performance(
+            prefix,
+            title="Animation / performance",
+            expanded=False,
+            layout="single",
+            fps=SliderSpec("Animation FPS", 10, 60, 30, 5),
+            max_frames=SliderSpec("Max frames", 200, 1600, 700, 20),
+            max_plot_pts=SliderSpec("Plot points (downsample)", 800, 20000, 8000, 200),
+            trail_default=True,
+            trail_checkbox_label="Show tail (3D)",
+            trail_max_points=SliderSpec("Tail max points", 50, 700, 280, 10),
+        )
 
     return dict(
         run_clicked=run_clicked,
@@ -78,24 +102,28 @@ def controls(prefix: str) -> Controls:
         t0=float(t0),
         t1=float(t1),
         dt=float(dt),
-        fps_anim=int(fps_anim),
-        max_frames=int(max_frames),
-        trail_on=bool(trail_on),
-        trail_max_points=int(trail_max_points),
-        max_plot_pts=int(max_plot_pts),
+        **solver,
+        **perf,
     )
 
 
 def run(controls: Controls) -> Tuple[Cfg, Out]:
     params = dict(sigma=controls["sigma"], rho=controls["rho"], beta=controls["beta"])
     ic = dict(x0=controls["x0"], y0=controls["y0"], z0=controls["z0"])
-    return run_lorenz(params, ic, controls["t0"], controls["t1"], controls["dt"])
+    return run_lorenz(
+        params,
+        ic,
+        controls["t0"],
+        controls["t1"],
+        controls["dt"],
+        method=controls["solver_method"],
+        rtol=controls["rtol"],
+        atol=controls["atol"],
+    )
 
 
 def caption(cfg: Cfg, out: Out) -> str:
-    T = np.asarray(out.get("T", []), dtype=float)
-    dt_eff = float(np.mean(np.diff(T))) if len(T) > 1 else float(cfg.get("dt", 0.01))
-    return f"Δt ≈ {dt_eff:.6f} s · N = {len(T)}"
+    return f"N = {len(out['T'])}"
 
 
 def make_dashboard(cfg: Cfg, out: Out, ui: Controls):
@@ -105,7 +133,7 @@ def make_dashboard(cfg: Cfg, out: Out, ui: Controls):
 def get_spec() -> SystemSpec:
     return SystemSpec(
         id="lor",
-        title="Lorenz system",
+        title="Lorenz attractor",
         controls=controls,
         run=run,
         caption=caption,

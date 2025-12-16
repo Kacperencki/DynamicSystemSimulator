@@ -30,7 +30,8 @@ python -m venv .venv
 source .venv/bin/activate
 
 python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
+python -m pip install -e .
+# or (legacy): python -m pip install -r requirements.txt
 ```
 
 ### 2) Run the Streamlit GUI
@@ -41,7 +42,7 @@ Run from the project root:
 streamlit run apps/streamlit/app.py
 ```
 
-If you see `ModuleNotFoundError: No module named 'apps'`, ensure you are running the command from the project root (the folder that contains `apps/` and `dss/`). See `docs/troubleshooting.md`.
+If you see `ModuleNotFoundError: No module named 'apps'`, install the project in editable mode (`python -m pip install -e .`) and rerun Streamlit. See `docs/troubleshooting.md`.
 
 ## Core usage (without Streamlit)
 
@@ -116,7 +117,7 @@ dss_proj/
     │   ├── inverted_pendulum.py
     │   ├── lorenz.py
     │   ├── pendulum.py
-    │   └── vanderpoll_circuit.py
+    │   └── vanderpol_circuit.py
     ├── scripts/
     │   ├── data/
     │   │   ├── ch6_dc_motor_step_summary.csv
@@ -165,7 +166,7 @@ dss_proj/
     │   └── vdp_limit_cycle.py
     └── wrappers/
         ├── __init__.py
-        ├── closed_lood_cart.py
+        ├── closed_loop_cart.py
         └── motor_wrapper.py
 ```
 
@@ -184,6 +185,5 @@ Start here:
 
 ## Notes
 
-- The Streamlit app adds the project root to `sys.path` so it can be run without packaging. For production/CI, consider adding a proper `pyproject.toml` and installing with `pip install -e .`.
-- `dss/core/simulator.py` references `vizualizer.visualizer.MatplotlibVisualizer`, which is **not included** in this repository. The modern path is the Streamlit GUI or direct solver usage.
-
+- This repository uses a proper `pyproject.toml` so it can be installed with `pip install -e .` (recommended for Streamlit + IDEs).
+- `dss/core/simulator.py` is a lightweight high-level API that returns SciPy solutions; visualization lives in the Streamlit GUI.

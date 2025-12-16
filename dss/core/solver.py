@@ -1,8 +1,13 @@
 # dss/core/solver.py
 
+import logging
+
 import numpy as np
 import scipy.integrate as integrate
 
+
+
+logger = logging.getLogger(__name__)
 
 class Solver:
     """
@@ -62,7 +67,8 @@ class Solver:
 
         # Time grid
         if t_eval is None:
-            n_steps = int(np.floor(self.T * self.fps)) + 1
+            duration = self.t_span[1] - self.t_span[0]
+            n_steps = int(np.floor(duration * self.fps)) + 1
             self.t_eval = np.linspace(self.t_span[0], self.t_span[1], n_steps)
         else:
             self.t_eval = np.asarray(t_eval, dtype=float)
@@ -91,11 +97,11 @@ class Solver:
                 atol=self.atol,
             )
         except Exception as e:
-            print("[Solver Error] Integration failed:", e)
+            logger.exception("Integration failed")
             raise
 
         if not sol.success:
-            print(f"[Solver Warning] Integration unsuccessful: {sol.message}")
+            logger.warning("Integration unsuccessful: %s", sol.message)
 
         if np.any(np.isnan(sol.y)) or np.any(np.isinf(sol.y)):
             raise FloatingPointError(
