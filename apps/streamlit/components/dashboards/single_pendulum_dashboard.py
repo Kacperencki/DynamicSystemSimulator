@@ -5,7 +5,7 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from apps.streamlit.components.dashboards._common import downsample_idx, pad_range
+from apps.streamlit.components.dashboards._common import downsample_idx, pad_range, duration_ms_from_frames
 Cfg = Dict[str, Any]
 Out = Dict[str, Any]
 
@@ -40,7 +40,8 @@ def make_single_pendulum_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go
         pick = np.linspace(0, len(frame_idx) - 1, max_frames, dtype=int)
         frame_idx = frame_idx[pick]
 
-    duration_ms = int(round(1000.0 / max(1, fps_anim)))
+    # Use simulated time between the selected frames (prevents speed-up when dt_sim is coarse).
+    duration_ms = duration_ms_from_frames(T, frame_idx, fps_fallback=fps_anim)
     pidx = downsample_idx(len(T), max_plot_pts)
 
     rng = 1.15 * L

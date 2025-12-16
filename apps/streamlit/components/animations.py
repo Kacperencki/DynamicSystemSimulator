@@ -5,6 +5,8 @@ from typing import Dict
 import numpy as np
 import plotly.graph_objects as go
 
+from apps.streamlit.components.dashboards._common import duration_ms_from_frames
+
 
 def make_cartpole_animation(cfg: Dict, T, X, system) -> go.Figure:
     """
@@ -36,6 +38,8 @@ def make_cartpole_animation(cfg: Dict, T, X, system) -> go.Figure:
 
     if len(idx) == 0:
         idx = np.array([0], dtype=int)
+
+    duration_ms = duration_ms_from_frames(T, idx, fps_fallback=fps_anim)
 
     cart_w = 0.3
     cart_h = 0.15
@@ -129,7 +133,7 @@ def make_cartpole_animation(cfg: Dict, T, X, system) -> go.Figure:
                         "args": [
                             None,
                             {
-                                "frame": {"duration": int(1000 / fps_anim), "redraw": True},
+                                "frame": {"duration": duration_ms, "redraw": True},
                                 "fromcurrent": True,
                                 "transition": {"duration": 0},
                             },
