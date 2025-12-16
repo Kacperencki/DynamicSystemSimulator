@@ -1,65 +1,107 @@
-# apps/streamlit/layout.py
+from __future__ import annotations
 
-from typing import Callable, Dict, Any, Tuple
+from dataclasses import dataclass, field
+from typing import Callable, Dict, Any, Tuple, Optional, List
+
 import streamlit as st
+import plotly.graph_objects as go
 
 Controls = Dict[str, Any]
 Cfg = Dict[str, Any]
 Out = Dict[str, Any]
 
-ControlsFn = Callable[[], Controls]
-RunFn = Callable[[Controls], Tuple[Cfg, Out]]
-RenderMainFn = Callable[[Cfg, Out], None]
+ControlsFn = Callable[[str], Controls]          # (prefix) -> controls dict (must include run_clicked)
+RunFn = Callable[[Controls], Tuple[Cfg, Out]]   # (controls) -> (cfg, out)
+FigFn = Callable[[Cfg, Out, Controls], go.Figure]
+CaptionFn = Callable[[Cfg, Out], str]
 
 
-def render_system_page(
-    title: str,
-    controls_panel: ControlsFn,
-    run_simulation: RunFn,
-    render_main: RenderMainFn,
-    state_key: str,
+@dataclass
+class PlotPanel:
+    title: str
+    make_fig: FigFn
+    height: int = 220
+
+
+@dataclass
+class SystemSpec:
+    id: str
+    title: str
+    controls: ControlsFn
+    run: RunFn
+    caption: Optional[CaptionFn] = None
+
+    # Preferred: a single dashboard figure (Plotly frames drive both animation + plots)
+    make_dashboard: Optional[FigFn] = None
+
+    # Alternative: separate animation + right stacked plots (no Plotly Play sync across charts)
+    make_animation: Optional[FigFn] = None
+    plots: List[PlotPanel] = field(default_factory=list)
+
+
+def render_system(
+    spec: SystemSpec,
+    *,
+    controls_container: Optional[st.delta_generator.DeltaGenerator] = None,
+    content_container: Optional[st.delta_generator.DeltaGenerator] = None,
 ) -> None:
+    """Generic page renderer.
+
+    - Controls render into `controls_container` (default: st.sidebar).
+    - Output renders into `content_container` (default: main page).
+    - State is namespaced by `spec.id`.
     """
-    Generic pattern used by ALL systems:
+    prefix = spec.id
+    if controls_container is None:
+        controls_container = st.sidebar
+    if content_container is None:
+        content_container = st
 
-    - LEFT column : controls panel (sliders, inputs, 'Run simulation' button)
-    - RIGHT column: animation + plots based on (cfg, out)
-
-    controls_panel() MUST return a dict containing a boolean key 'run_clicked'.
-    """
-
-    st.subheader(title)
-
-    # left = controls, right = main content
-    # slightly narrower main column than before; large gap for breathing room
-    col_ctrl, col_main = st.columns([1.1, 1.7], gap="large")
-
-    # --- LEFT: controls + run button ---
-    with col_ctrl:
-        controls = controls_panel()
+    # Controls
+    with controls_container:
+        controls = spec.controls(prefix)
 
     run_clicked = bool(controls.pop("run_clicked", False))
 
+    # Session state
+    cfg_key = f"{prefix}_cfg"
+    out_key = f"{prefix}_out"
+    st.session_state.setdefault(cfg_key, None)
+    st.session_state.setdefault(out_key, None)
+
     if run_clicked:
-        # basic feedback when a simulation might take time
-        with st.spinner("Running simulation..."):
-            cfg, out = run_simulation(controls)
-        st.session_state[f"{state_key}_cfg"] = cfg
-        st.session_state[f"{state_key}_out"] = out
+        cfg, out = spec.run(controls)
+        st.session_state[cfg_key] = cfg
+        st.session_state[out_key] = out
 
-    cfg = st.session_state.get(f"{state_key}_cfg")
-    out = st.session_state.get(f"{state_key}_out")
+    cfg = st.session_state[cfg_key]
+    out = st.session_state[out_key]
 
-    # --- RIGHT: animation + plots ---
-    with col_main:
+    # Output
+    with content_container:
         if cfg is None or out is None:
-            # show a placeholder "canvas" so the right side does not look empty
-            st.info("Configure parameters on the left and run the simulation.")
-            st.markdown(
-                "<div style='height:420px; background-color:#f9fafb; "
-                "border-radius:0.5rem; border:1px dashed #e5e7eb;'></div>",
-                unsafe_allow_html=True,
-            )
+            st.info("Configure parameters on the left and click Run.")
             return
 
-        render_main(cfg, out)
+        if spec.caption is not None:
+            st.caption(spec.caption(cfg, out))
+
+        if spec.make_dashboard is not None:
+            fig = spec.make_dashboard(cfg, out, controls)
+            st.plotly_chart(fig, width='stretch', config={"displayModeBar": False})
+            return
+
+        # Fallback mode: separate animation + plot stack
+        col_anim, col_plots = st.columns([1.25, 1.0], gap="large")
+
+        if spec.make_animation is not None:
+            with col_anim:
+                fig_anim = spec.make_animation(cfg, out, controls)
+                st.plotly_chart(fig_anim, width='stretch', config={"displayModeBar": False})
+
+        with col_plots:
+            for p in spec.plots:
+                st.markdown(f"**{p.title}**")
+                figp = p.make_fig(cfg, out, controls)
+                figp.update_layout(height=p.height, margin=dict(l=8, r=8, t=25, b=8))
+                st.plotly_chart(figp, width='stretch', config={"displayModeBar": False})

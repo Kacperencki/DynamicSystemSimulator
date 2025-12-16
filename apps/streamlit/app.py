@@ -1,48 +1,43 @@
-# apps/streamlit/app.py
-import sys
 from pathlib import Path
+import sys
 
-import streamlit as st
-
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[2]  # project root (folder that contains "apps")
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from apps.streamlit.views.single_pendulum_view import render_single_pendulum_page
-from apps.streamlit.views.double_pendulum_view import render_double_pendulum_page
-from apps.streamlit.views.vanderpool_view import render_vanderpol_page
-from apps.streamlit.views.inverted_view import render_inverted_page
+import streamlit as st
+
+# MUST be first Streamlit call
+st.set_page_config(page_title="Dynamic System Simulator", layout="wide")
+
+# Load CSS (optional, safe if missing)
+css_path = Path(__file__).resolve().parent / "assets" / "style.css"
+if css_path.exists():
+    st.markdown(f"<style>{css_path.read_text(encoding='utf-8')}</style>", unsafe_allow_html=True)
 
 
-st.set_page_config(
-    page_title="Dynamic System Simulator",
-    layout="wide",
-)
+from apps.streamlit.layout import render_system
+from apps.streamlit.registry import SYSTEM_SPECS, SYSTEM_LEGACY
 
-# -------------------- LEFT SIDEBAR: ONLY SYSTEM SELECT --------------------
-with st.sidebar:
-    system = st.selectbox(
-        "System",
-        [
-            "Single pendulum",
-            "Double pendulum",
-            "Van der Pol oscillator",
-            "Inverted pendulum / cart–pole",
-        ],
-        key="system_select",
+# Main layout: compact controls (left) + dashboard (right)
+col_controls, col_main = st.columns([0.8, 4], gap="small")
+
+
+with col_controls:
+    st.markdown('<div id="controls-anchor"></div>', unsafe_allow_html=True)
+
+    model_name = st.selectbox(
+        "Model",
+        list(SYSTEM_SPECS.keys()) + list(SYSTEM_LEGACY.keys()),
+        key="model_select",
     )
 
-# -------------------- MAIN AREA (right side) ------------------------------
-# No extra title / caption here — each view handles its own heading.
-
-if system == "Single pendulum":
-    render_single_pendulum_page()
-
-elif system == "Double pendulum":
-    render_double_pendulum_page()
-
-elif system == "Van der Pol oscillator":
-    render_vanderpol_page()
-
-elif system == "Inverted pendulum / cart–pole":
-    render_inverted_page()
+if model_name in SYSTEM_SPECS:
+    render_system(
+        SYSTEM_SPECS[model_name],
+        controls_container=col_controls,
+        content_container=col_main,
+    )
+else:
+    with col_main:
+        SYSTEM_LEGACY[model_name]()

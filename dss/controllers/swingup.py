@@ -26,7 +26,7 @@ class AutoSwingUp:
         - Control law:
 
             Region 1 (far from upright, |theta_up| >= soft_zone):
-                u_raw = ke * (E - E_des) * sign(theta_dot * cos(theta_up))
+                u_raw = ke * shaped(E - E_des) * dir(theta_dot * cos(theta_up))
                         - kv * x_dot
                         - kx * x
 
@@ -53,10 +53,11 @@ class AutoSwingUp:
         soft_zone_deg: float = 8.0,
         soft_kx: Optional[float] = None,
         soft_kv: Optional[float] = None,
-        # shaping parameters (kept for API compatibility; not used in law)
+        # shaping parameters (used below)
         e_scale: float = 0.6,
         e_dead: float = 0.05,
         thd_clip: float = 12.0,
+        dir_k: float = 6.0,
         # rate limiter
         du_max: float = 300.0,
     ):
@@ -87,10 +88,11 @@ class AutoSwingUp:
         # doesn’t drift to infinity in one direction.
         self.kx = 0.5
 
-        # Shaping parameters kept for compatibility (not used below)
+        # Shaping parameters
         self.e_scale = float(max(1e-6, e_scale))
         self.e_dead = float(max(0.0, e_dead))
         self.thd_clip = float(max(1e-3, thd_clip))
+        self.dir_k = float(max(1e-3, dir_k))
 
         # Rate limiter state
         self.du_max = float(max(1e-3, du_max))
@@ -147,18 +149,36 @@ class AutoSwingUp:
             return self._rate_limit(t, u_raw)
 
         # Region 2: energy pumping away from upright
+        #
+        # Smoothing for nicer-looking motion:
+        #   - Energy error is shaped (deadzone + tanh) so the force does not instantly
+        #     slam into saturation (square-wave cart motion).
+        #   - Direction term is continuous (tanh) instead of a hard sign flip.
         E = self.energy(state)
         Edes = self.energy_desired()
-        Eerr = E - Edes
 
-        # Classic direction term: sign(theta_dot * cos(theta_up))
-        pump_dir = np.sign(thd * np.cos(th_up))
-        if pump_dir == 0.0:
+        # normalized energy error (same sign convention as the classic law)
+        #   En < 0  -> energy too low (pump)
+        #   En > 0  -> energy too high (brake)
+        En = float(E - Edes) / float(max(1e-6, Edes))
+        if abs(En) < self.e_dead:
+            En = 0.0
+        Eterm = float(np.tanh(En / self.e_scale))  # in [-1, 1]
+
+        thd_use = float(np.clip(thd, -self.thd_clip, self.thd_clip))
+        c = float(np.cos(th_up))
+        phase = thd_use * c
+
+        # If the pole starts exactly at rest (common for initial conditions near the bottom),
+        # the classic phase term is zero. Use a fixed initial direction so the motion starts.
+        if abs(phase) < 1e-6:
             pump_dir = 1.0
+        else:
+            pump_dir = float(np.tanh(self.dir_k * phase))  # in [-1, 1]
 
         # Energy pump + cart velocity damping + small centering on x
         u_raw = (
-            self.ke * Eerr * pump_dir
+            self.ke * Eterm * pump_dir
             - self.kv * x_dot
             - self.kx * x
         )

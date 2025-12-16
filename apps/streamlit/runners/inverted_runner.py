@@ -36,7 +36,20 @@ def run_ip_open(
         mass=params["mass"],
         cart_mass=params["cart_mass"],
         gravity=params["g"],
-        mass_model=params["mass_model"],
+        mass_model=params.get("mass_model", "point"),
+        # friction
+        b_cart=params.get("b_cart", 0.0),
+        coulomb_cart=params.get("coulomb_cart", 0.0),
+        b_pend=params.get("b_pend", 0.0),
+        coulomb_pend=params.get("coulomb_pend", 0.0),
+        coulomb_k=params.get("coulomb_k", 1e3),
+        # harmonic drives
+        cart_drive_amp=params.get("cart_drive_amp", 0.0),
+        cart_drive_freq=params.get("cart_drive_freq", 0.0),
+        cart_drive_phase=params.get("cart_drive_phase", 0.0),
+        pend_drive_amp=params.get("pend_drive_amp", 0.0),
+        pend_drive_freq=params.get("pend_drive_freq", 0.0),
+        pend_drive_phase=params.get("pend_drive_phase", 0.0),
     )
 
     T_total = float(t1 - t0)
@@ -104,7 +117,20 @@ def run_ip_closed(
         mass=params["mass"],
         cart_mass=params["cart_mass"],
         gravity=params["g"],
-        mass_model=params["mass_model"],
+        mass_model=params.get("mass_model", "point"),
+        # friction
+        b_cart=params.get("b_cart", 0.0),
+        coulomb_cart=params.get("coulomb_cart", 0.0),
+        b_pend=params.get("b_pend", 0.0),
+        coulomb_pend=params.get("coulomb_pend", 0.0),
+        coulomb_k=params.get("coulomb_k", 1e3),
+        # harmonic drives
+        cart_drive_amp=params.get("cart_drive_amp", 0.0),
+        cart_drive_freq=params.get("cart_drive_freq", 0.0),
+        cart_drive_phase=params.get("cart_drive_phase", 0.0),
+        pend_drive_amp=params.get("pend_drive_amp", 0.0),
+        pend_drive_freq=params.get("pend_drive_freq", 0.0),
+        pend_drive_phase=params.get("pend_drive_phase", 0.0),
     )
 
     # ----- LQR parameter mapping (GUI → AutoLQR) -----------------
@@ -166,8 +192,14 @@ def run_ip_closed(
             swingup_controller=swing,
             engage_angle_deg=float(switch_set.get("engage_angle_deg", 25.0)),
             engage_speed_rad_s=float(switch_set.get("engage_speed_rad_s", 9.0)),
+            engage_cart_speed=float(switch_set.get("engage_cart_speed", 6.0)),
             dropout_angle_deg=float(switch_set.get("dropout_angle_deg", 45.0)),
+            dropout_speed_rad_s=float(switch_set.get("dropout_speed_rad_s", 30.0)),
+            dropout_cart_speed=float(switch_set.get("dropout_cart_speed", 10.0)),
             allow_dropout=bool(switch_set.get("allow_dropout", True)),
+            # Smooth transitions (prevents visible kicks at the SWING↔LQR switch)
+            blend_time=float(switch_set.get("blend_time", 0.12)),
+            du_max=float(switch_set.get("du_max", 800.0)),
             # keep the rest at good defaults; turn off spam:
             verbose=False,
         )
