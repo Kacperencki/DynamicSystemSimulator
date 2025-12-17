@@ -14,7 +14,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from dss.models import InvertedPendulum
-from dss.wrappers.closed_loop_cart import CloseLoopCart
+from dss.wrappers.closed_loop_cart import ClosedLoopCart
 from dss.controllers import AutoLQR, AutoSwingUp
 from dss.core.experiments import run_simulation_with_diagnostics
 from dss.core.logger import SimulationLogger
@@ -44,7 +44,7 @@ def estimate_settling_time(t: np.ndarray, y: np.ndarray, eps: float = 0.05) -> O
 def run_swingup(plant: InvertedPendulum, logger: SimulationLogger):
     # Closed loop: plant + swing-up controller
     swing = AutoSwingUp(system=plant)
-    closed = CloseLoopCart(system=plant, controller=swing)
+    closed = ClosedLoopCart(system=plant, controller=swing)
 
     # Start near bottom: theta ≈ π (downward), expressed as angle from UP
     x0 = np.array([0.0, 0.0, np.pi - 0.2, 0.0], dtype=float)
@@ -107,7 +107,7 @@ def run_swingup(plant: InvertedPendulum, logger: SimulationLogger):
 def run_lqr(plant: InvertedPendulum, logger: SimulationLogger):
     # LQR around upright
     lqr = AutoLQR(system=plant, u_max=20.0)
-    closed = CloseLoopCart(system=plant, controller=lqr)
+    closed = ClosedLoopCart(system=plant, controller=lqr)
 
     # Small perturbation from upright
     x0 = np.array([0.0, 0.0, 0.15, 0.0], dtype=float)
