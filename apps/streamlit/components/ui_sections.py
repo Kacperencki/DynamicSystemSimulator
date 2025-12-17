@@ -221,3 +221,17 @@ def animation_performance(
         trail_max_points=int(st.session_state.get(f"{prefix}_trail_max_points", trail_max_points.value)),
         max_plot_pts=int(st.session_state.get(f"{prefix}_max_plot_pts", max_plot_pts.value)),
     )
+
+
+def logging_settings(
+    prefix: str,
+    *,
+    expanded: bool = False,
+    default_dir: str = "logs",
+) -> tuple[bool, str, str]:
+    """Optional persistence of runs (config + arrays)."""
+    with st.expander("Logging", expanded=expanded):
+        save_run = st.checkbox("Save run (config + output)", value=False, key=f"{prefix}_save_run")
+        log_dir = st.text_input("Log directory", value=str(default_dir), key=f"{prefix}_log_dir")
+        run_name = st.text_input("Run name (optional)", value="", key=f"{prefix}_run_name")
+    return bool(save_run), str(log_dir), str(run_name)

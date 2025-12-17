@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Dict, Tuple
-import inspect
+from typing import Any, Dict, Tuple
 
 import numpy as np
 
@@ -12,7 +11,50 @@ from dss.wrappers.closed_loop_cart import ClosedLoopCart
 from dss.controllers.lqr_controller import AutoLQR
 from dss.controllers.swingup import AutoSwingUp
 from dss.controllers.simple_switcher import SimpleSwitcher
-from dss.core.solver import Solver
+
+from apps.streamlit.runners._common import run_from_system
+
+
+def _coerce_mode(mode: str) -> str:
+    # Backwards compatibility: older UI used a generic "damped" option.
+    if mode == "damped":
+        return "damped_both"
+    return mode
+
+
+def _plant_from_params(params: Dict[str, Any]):
+    """Build the inverted pendulum plant from Streamlit params.
+
+    Supports both the new names (length/mass/cart_mass) and legacy names (l/m/M).
+    """
+    mode = _coerce_mode(str(params.get("mode", "damped_both")))
+
+    length = float(params.get("length", params.get("l", params.get("L", 0.3))))
+    mass = float(params.get("mass", params.get("m", 0.2)))
+    cart_mass = float(params.get("cart_mass", params.get("M", 0.5)))
+    g = float(params.get("g", params.get("gravity", 9.81)))
+
+    plant = get_model(
+        "inverted_pendulum",
+        mode=mode,
+        length=length,
+        mass=mass,
+        cart_mass=cart_mass,
+        g=g,
+        mass_model=str(params.get("mass_model", "point")),
+        b_cart=float(params.get("b_cart", 0.0)),
+        coulomb_cart=float(params.get("coulomb_cart", 0.0)),
+        b_pend=float(params.get("b_pend", 0.0)),
+        coulomb_pend=float(params.get("coulomb_pend", 0.0)),
+        coulomb_k=float(params.get("coulomb_k", 1e3)),
+        cart_drive_amp=float(params.get("cart_drive_amp", 0.0)),
+        cart_drive_freq=float(params.get("cart_drive_freq", 0.0)),
+        cart_drive_phase=float(params.get("cart_drive_phase", 0.0)),
+        pend_drive_amp=float(params.get("pend_drive_amp", 0.0)),
+        pend_drive_freq=float(params.get("pend_drive_freq", 0.0)),
+        pend_drive_phase=float(params.get("pend_drive_phase", 0.0)),
+    )
+    return plant, mode
 
 
 def run_ip_open(
@@ -25,75 +67,38 @@ def run_ip_open(
     method: str = "RK45",
     rtol: float = 1e-4,
     atol: float = 1e-6,
+    save_run: bool = False,
+    log_dir: str = "logs",
+    run_name: str = "",
 ) -> Tuple[Dict, Dict]:
     """Open-loop inverted pendulum (no control)."""
-    system = get_model(
-        "inverted_pendulum",
-        mode=params["mode"],
-        length=params["length"],
-        mass=params["mass"],
-        cart_mass=params["cart_mass"],
-        gravity=params["g"],
-        mass_model=params.get("mass_model", "point"),
-        # friction
-        b_cart=params.get("b_cart", 0.0),
-        coulomb_cart=params.get("coulomb_cart", 0.0),
-        b_pend=params.get("b_pend", 0.0),
-        coulomb_pend=params.get("coulomb_pend", 0.0),
-        coulomb_k=params.get("coulomb_k", 1e3),
-        # harmonic drives
-        cart_drive_amp=params.get("cart_drive_amp", 0.0),
-        cart_drive_freq=params.get("cart_drive_freq", 0.0),
-        cart_drive_phase=params.get("cart_drive_phase", 0.0),
-        pend_drive_amp=params.get("pend_drive_amp", 0.0),
-        pend_drive_freq=params.get("pend_drive_freq", 0.0),
-        pend_drive_phase=params.get("pend_drive_phase", 0.0),
-    )
-
-    T_total = float(t1 - t0)
-
-    # target based on dt
-    fps_target = 1.0 / dt if dt > 0 else 100.0
-
-    # hard cap on fps to avoid too many steps
-    FPS_CAP = 200.0
-    fps_eff = int(min(fps_target, FPS_CAP))
-    if fps_eff < 1:
-        fps_eff = 1
+    plant, mode = _plant_from_params(params)
 
     x0, xdot0, th0, thdot0 = ic["x0"], ic["xdot0"], ic["th0"], ic["thdot0"]
 
-    sol = Solver(
-        system,
-        initial_conditions=[x0, xdot0, th0, thdot0],
-        T=T_total,
-        fps=fps_eff,
-        method=str(method),
-        rtol=float(rtol),
-        atol=float(atol),
-    ).run()
-    T = sol.t
-    X = sol.y.T
-
-    E_parts = np.array([system.energy_check(s) for s in X])
-    KE, PE, E = E_parts[:, 0], E_parts[:, 1], E_parts[:, 2]
+    FPS_CAP = 200.0
+    dt_eff = max(float(dt), 1.0 / FPS_CAP)
 
     cfg = dict(
         sys="ip_open",
-        solver_method=str(method),
-        rtol=float(rtol),
-        atol=float(atol),
-        **params,
-        x0=x0,
-        xdot0=xdot0,
-        th0=th0,
-        thdot0=thdot0,
-        t0=t0,
-        t1=t1,
-        dt=dt,
+        model={"name": "inverted_pendulum", "mode": mode, "params": dict(params)},
+        initial_state=[float(x0), float(xdot0), float(th0), float(thdot0)],
+        solver={"t0": float(t0), "t1": float(t1), "dt": float(dt_eff), "method": str(method), "rtol": float(rtol), "atol": float(atol)},
     )
-    out = dict(T=T, X=X, E_parts=(KE, PE, E))
-    return cfg, out
+
+    cfg2, out = run_from_system(
+        plant,
+        np.array([x0, xdot0, th0, thdot0], dtype=float),
+        cfg,
+        save_run=save_run,
+        log_dir=log_dir,
+        run_name=run_name,
+    )
+
+    X = np.asarray(out["X"])
+    E_parts = np.array([plant.energy_check(s) for s in X])
+    out["E_parts"] = E_parts
+    return cfg2, out
 
 
 def run_ip_closed(
@@ -110,166 +115,118 @@ def run_ip_closed(
     method: str = "RK45",
     rtol: float = 1e-4,
     atol: float = 1e-6,
+    save_run: bool = False,
+    log_dir: str = "logs",
+    run_name: str = "",
 ) -> Tuple[Dict, Dict]:
-    """Closed-loop inverted pendulum: plant + controller via ClosedLoopCart."""
-    # physical plant
-    plant = get_model(
-        "inverted_pendulum",
-        mode=params["mode"],
-        length=params["length"],
-        mass=params["mass"],
-        cart_mass=params["cart_mass"],
-        gravity=params["g"],
-        mass_model=params.get("mass_model", "point"),
-        # friction
-        b_cart=params.get("b_cart", 0.0),
-        coulomb_cart=params.get("coulomb_cart", 0.0),
-        b_pend=params.get("b_pend", 0.0),
-        coulomb_pend=params.get("coulomb_pend", 0.0),
-        coulomb_k=params.get("coulomb_k", 1e3),
-        # harmonic drives
-        cart_drive_amp=params.get("cart_drive_amp", 0.0),
-        cart_drive_freq=params.get("cart_drive_freq", 0.0),
-        cart_drive_phase=params.get("cart_drive_phase", 0.0),
-        pend_drive_amp=params.get("pend_drive_amp", 0.0),
-        pend_drive_freq=params.get("pend_drive_freq", 0.0),
-        pend_drive_phase=params.get("pend_drive_phase", 0.0),
-    )
+    """Closed-loop inverted pendulum: plant + controller wrapper."""
 
-    # ----- LQR parameter mapping (GUI → AutoLQR) -----------------
-    def build_lqr():
+    plant, mode = _plant_from_params(params)
+
+    # ----- LQR parameter mapping (GUI weights → AutoLQR magnitudes) ------
+    def build_lqr() -> AutoLQR:
         q_x = float(lqr_set.get("q_x", 1.0))
         q_xdot = float(lqr_set.get("q_xdot", 1.0))
-        q_theta = float(lqr_set.get("q_theta", 50.0))
+        q_theta = float(lqr_set.get("q_theta", 60.0))
         q_thetad = float(lqr_set.get("q_thetad", 1.0))
         u_max = float(lqr_set.get("u_max", 20.0))
 
-        # Base "allowed magnitudes"
+        # Base "allowed magnitudes" (Bryson-style defaults)
         base_x_max = 0.25
         base_xd_max = 2.0
         base_theta_max_deg = 8.0
         base_thetad_max = 4.0
 
-        # Simple monotonic mapping: higher q -> smaller allowed magnitude
-        x_scale = np.sqrt(max(q_x, 1e-3) / 1.0)
-        xd_scale = np.sqrt(max(q_xdot, 1e-3) / 1.0)
-        th_scale = np.sqrt(max(q_theta, 1e-3) / 50.0)
-        thd_scale = np.sqrt(max(q_thetad, 1e-3) / 1.0)
+        # Monotonic mapping: higher weight => smaller allowed magnitude
+        x_scale = np.sqrt(max(q_x, 1e-6) / 1.0)
+        xd_scale = np.sqrt(max(q_xdot, 1e-6) / 1.0)
+        th_scale = np.sqrt(max(q_theta, 1e-6) / 60.0)
+        thd_scale = np.sqrt(max(q_thetad, 1e-6) / 1.0)
 
-        x_max = float(np.clip(base_x_max / x_scale, 0.05, 1.0))
-        xd_max = float(np.clip(base_xd_max / xd_scale, 0.2, 5.0))
-        theta_max_deg = float(np.clip(base_theta_max_deg / th_scale, 2.0, 30.0))
-        thetad_max = float(np.clip(base_thetad_max / thd_scale, 0.5, 10.0))
+        x_max = base_x_max / x_scale
+        xd_max = base_xd_max / xd_scale
+        theta_max_deg = base_theta_max_deg / th_scale
+        thetad_max = base_thetad_max / thd_scale
 
-        return AutoLQR(
+        lqr = AutoLQR(
             plant,
-            x_max=x_max,
-            xd_max=xd_max,
-            theta_max_deg=theta_max_deg,
-            thetad_max=thetad_max,
+            x_max=float(lqr_set.get("x_max", x_max)),
+            xd_max=float(lqr_set.get("xd_max", xd_max)),
+            theta_max_deg=float(lqr_set.get("theta_max_deg", theta_max_deg)),
+            thetad_max=float(lqr_set.get("thetad_max", thetad_max)),
             u_max=u_max,
         )
+        # Keep compatibility with switcher logic that may set these later
+        if "x_ref" in lqr_set:
+            lqr.x_ref = float(lqr_set["x_ref"])
+        if "theta_ref" in lqr_set:
+            lqr.theta_ref = float(lqr_set["theta_ref"])
+        return lqr
 
-    # ----- Swing-up parameter mapping (GUI → AutoSwingUp) --------
-    def build_swing():
-        k_e = swing_set.get("k_e", None)
-        u_max = swing_set.get("u_max", None)
-        return AutoSwingUp(
+    def build_swing() -> AutoSwingUp:
+        ke = float(swing_set.get("k_e", swing_set.get("ke", 1.0)))
+        u_max = float(swing_set.get("u_max", swing_set.get("force_limit", 25.0)))
+        # AutoSwingUp uses force_limit as actuator saturation
+        return AutoSwingUp(plant, ke=ke, force_limit=u_max)
+
+    def build_switch(lqr: AutoLQR, swing: AutoSwingUp) -> SimpleSwitcher:
+        return SimpleSwitcher(
             plant,
-            ke=k_e,
-            force_limit=u_max,
-        )
-
-    # ----- Switcher mapping (GUI → SimpleSwitcher)  --------------
-    def build_switch(lqr, swing):
-        raw_kwargs = dict(
-            system=plant,
             lqr_controller=lqr,
             swingup_controller=swing,
             engage_angle_deg=float(switch_set.get("engage_angle_deg", 25.0)),
             engage_speed_rad_s=float(switch_set.get("engage_speed_rad_s", 9.0)),
-            engage_cart_speed=float(switch_set.get("engage_cart_speed", 6.0)),
-            dropout_angle_deg=float(switch_set.get("dropout_angle_deg", 45.0)),
+            engage_cart_speed=float(switch_set.get("engage_cart_speed", 1.2)),
+            dropout_angle_deg=float(switch_set.get("dropout_angle_deg", 110.0)),
             dropout_speed_rad_s=float(switch_set.get("dropout_speed_rad_s", 30.0)),
             dropout_cart_speed=float(switch_set.get("dropout_cart_speed", 10.0)),
-            allow_dropout=bool(switch_set.get("allow_dropout", True)),
-            # smooth transitions (optional; kept if supported by the installed class)
-            blend_time=float(switch_set.get("blend_time", 0.12)),
-            du_max=float(switch_set.get("du_max", 800.0)),
-            verbose=False,
+            hold_time=float(switch_set.get("hold_time", 0.05)),
         )
-        sig = inspect.signature(SimpleSwitcher.__init__)
-        kwargs = {k: v for k, v in raw_kwargs.items() if k in sig.parameters}
-        return SimpleSwitcher(**kwargs)
 
     # ----- Build controller by mode -------------------------------
     if ctrl_mode == "LQR stabilizer":
-        lqr = build_lqr()
-        # Stabilize around the current cart position by default (prevents snapping to x=0)
-        if hasattr(lqr, "x_ref"):
-            lqr.x_ref = float(ic.get("x0", 0.0))
-        controller = lqr
-
+        controller = build_lqr()
+        ctrl_name = "ip_lqr"
+        ctrl_params = dict(lqr_set)
     elif ctrl_mode == "Swing-up only":
-        swing = build_swing()
-        controller = swing
-
+        controller = build_swing()
+        ctrl_name = "ip_swingup"
+        ctrl_params = dict(swing_set)
     elif ctrl_mode == "Swing-up + LQR (simple)":
         lqr = build_lqr()
-        # Same idea: when LQR engages, it should hold the current x as reference
-        # (the switcher also sets x_ref on ENTER, but this keeps things consistent)
-        if hasattr(lqr, "x_ref"):
-            lqr.x_ref = float(ic.get("x0", 0.0))
         swing = build_swing()
         controller = build_switch(lqr, swing)
-
+        ctrl_name = "ip_switch_simple"
+        ctrl_params = {"lqr": dict(lqr_set), "swing": dict(swing_set), "switch": dict(switch_set)}
     else:
         raise ValueError(f"Unsupported ctrl_mode: {ctrl_mode!r}")
 
     closed = ClosedLoopCart(system=plant, controller=controller)
 
-    T_total = float(t1 - t0)
-
-    fps_target = 1.0 / dt if dt > 0 else 100.0
-    FPS_CAP = 200.0
-    fps_eff = int(min(fps_target, FPS_CAP))
-    if fps_eff < 1:
-        fps_eff = 1
-
     x0, xdot0, th0, thdot0 = ic["x0"], ic["xdot0"], ic["th0"], ic["thdot0"]
-    sol = Solver(
-        closed,
-        initial_conditions=[x0, xdot0, th0, thdot0],
-        T=T_total,
-        fps=fps_eff,
-        method=str(method),
-        rtol=float(rtol),
-        atol=float(atol),
-    ).run()
 
-    T = sol.t
-    X = sol.y.T
-
-    E_parts = np.array([closed.energy_check(s) for s in X])
-    KE, PE, E = E_parts[:, 0], E_parts[:, 1], E_parts[:, 2]
+    FPS_CAP = 200.0
+    dt_eff = max(float(dt), 1.0 / FPS_CAP)
 
     cfg = dict(
         sys="ip_closed",
-        ctrl_mode=ctrl_mode,
-        solver_method=str(method),
-        rtol=float(rtol),
-        atol=float(atol),
-        **params,
-        x0=x0,
-        xdot0=xdot0,
-        th0=th0,
-        thdot0=thdot0,
-        t0=t0,
-        t1=t1,
-        dt=dt,
-        lqr_settings=lqr_set,
-        swing_settings=swing_set,
-        switch_settings=switch_set,
+        model={"name": "inverted_pendulum", "mode": mode, "params": dict(params)},
+        controller={"name": ctrl_name, "params": ctrl_params},
+        wrapper={"name": "closed_loop_cart"},
+        initial_state=[float(x0), float(xdot0), float(th0), float(thdot0)],
+        solver={"t0": float(t0), "t1": float(t1), "dt": float(dt_eff), "method": str(method), "rtol": float(rtol), "atol": float(atol)},
     )
-    out = dict(T=T, X=X, E_parts=(KE, PE, E))
-    return cfg, out
+
+    cfg2, out = run_from_system(
+        closed,
+        np.array([x0, xdot0, th0, thdot0], dtype=float),
+        cfg,
+        save_run=save_run,
+        log_dir=log_dir,
+        run_name=run_name,
+    )
+
+    X = np.asarray(out["X"])
+    E_parts = np.array([plant.energy_check(s) for s in X])
+    out["E_parts"] = E_parts
+    return cfg2, out

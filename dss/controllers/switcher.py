@@ -216,3 +216,8 @@ class AutoSwitcher:
         u_out = u_swing
         self._log_telemetry(t, state, self._eligible(th_abs, thd_abs), u_swing, None, u_out, clamped=False)
         return u_out
+
+    # Uniform callable interface: u = pi(t, x)
+    def __call__(self, t, state):
+        return self.cart_force(t, state)
+

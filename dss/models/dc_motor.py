@@ -124,7 +124,7 @@ class DCMotor:
 
     # --- Core model ------------------------------------------------
 
-    def dynamics(self, t, state):
+    def dynamics(self, t, state, inputs=None):
         i, omega = float(state[0]), float(state[1])
 
         V = self.voltage(t)

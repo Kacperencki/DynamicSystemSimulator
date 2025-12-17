@@ -9,12 +9,15 @@ class ClosedLoopCart:
         self.system = system
         self.controller = controller
 
-    def dynamics(self, t, state):
+    def dynamics(self, t, state, inputs=None):
         if np.any(np.isnan(state)) or np.any(np.isinf(state)):
             raise FloatingPointError(f"[Dynamics Error] Bad state at t={t}: {state}")
 
         # Controller computes cart force from current state
-        u = self.controller.cart_force(t, state)
+        if hasattr(self.controller, "cart_force"):
+            u = self.controller.cart_force(t, state)
+        else:
+            u = self.controller(t, state)
 
         if not np.isfinite(u):
             raise FloatingPointError(f"[Control Error] Non-finite control at t={t}: {u}")

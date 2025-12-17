@@ -1,129 +1,191 @@
 # Models
 
-This document describes state definitions, parameters, and common helper methods per model.
-For the canonical source of truth, see the class docstrings in `dss/models/*.py`.
+This page documents the built-in dynamical systems under `dss/models/`.
 
-## Common model interface
+## Common conventions
 
-Most models provide:
-
-- `dynamics(t, state, u=None)` → `state_dot`
-- `state_labels()` → list of strings for plotting
-- `positions(state)` → geometric points for animation (mechanical systems)
-- optional checks: `energy_check(...)`, `energy(...)`, etc.
-
-Important: `Solver` calls `system.dynamics(t, state)` with *two* arguments, so models that accept an input must provide a default like `u=None`.
-
----
-
-## Single pendulum (`dss/models/pendulum.py`)
-
-State:
-- `theta` [rad] (absolute from downward vertical)
-- `theta_dot` [rad/s]
-
-Constructor (required):
-- `length`, `mass`, `mode`
-
-Key parameters (defaults shown):
-- `damping=0.0` (viscous)
-- `coulomb=0.0` (Coulomb friction)
-- `gravity=9.81`
-- `drive_amplitude=2.0`, `drive_frequency=2.0`, `drive_phase=0.0`
-- `mass_model='point'` (or `'uniform'` via inertia/COM settings)
-
-Helper methods:
-- `positions(state)` for animation
-- `energy_check(t, state)` for drift diagnostics
-
-Modes:
-- `ideal`, `damped`, `driven`, `dc_driven` (see class docstring)
+- Time `t` is in **seconds**.
+- Angles are in **radians**.
+- State vectors are NumPy arrays:
+  - single state `state`: shape `(n_state,)`
+  - trajectory `X`: shape `(N, n_state)`
+- All models provide:
+  - `dynamics(t, state, inputs=None) -> dstate_dt`
+  - `state_labels() -> list[str]`
+- Some models additionally provide:
+  - `positions(state)` for animation geometry
+  - `energy_check(state)` for energy partition / validation
 
 ---
 
-## Double pendulum (`dss/models/double_pendulum.py`)
+## Single pendulum (`Pendulum`)
 
-State:
-- `theta1`, `theta1_dot`, `theta2`, `theta2_dot`
+**File:** `dss/models/pendulum.py`  
+**State:** `x = [theta, theta_dot]`
 
-Constructor (required):
-- `length1`, `mass1`, `length2`, `mass2`, `mode`
+- `theta`: angle from **downward** vertical (rad)
+- `theta_dot`: angular velocity (rad/s)
 
-Key parameters:
-- per-joint damping and Coulomb friction: `damping1`, `damping2`, `coulomb1`, `coulomb2`
-- optional drives: `drive1_*`, `drive2_*`
-- `mass_model='uniform'` by default
+### Modes
 
-Provides:
-- `positions(state)` for animation
-- energy drift checks and helper solvers
+The `mode` string controls which terms are active:
 
----
+- `ideal`: gravity only
+- `damped`: gravity + viscous damping + Coulomb friction
+- `driven`: damped + harmonic torque `A*cos(ω t + φ)`
+- `dc_driven`: damped + external torque passed via `inputs` (also referred to as `tau_drive` conceptually)
 
-## Inverted pendulum on a cart (`dss/models/inverted_pendulum.py`)
+### Key parameters
 
-State:
-- `x`, `x_dot`, `theta`, `theta_dot`
+- `length`, `mass`
+- `gravity` (default 9.81)
+- `damping`: viscous coefficient
+- `coulomb`: Coulomb friction level
+- `drive_amplitude`, `drive_frequency`, `drive_phase`
+- `mass_model`: `"point"` or `"uniform"` (controls inertia/com geometry)
+- `I`, `lc`: optional overrides (inertia and COM distance)
+- `coulomb_vel_eps`: smoothing for Coulomb friction around zero velocity
 
-Constructor has defaults; you can instantiate without arguments.
+### Geometry and energy
 
-Key parameters:
-- pendulum geometry (`length`, `mass`, `lc`, inertias)
-- cart mass (`cart_mass`)
-- damping and Coulomb friction for cart and pendulum
-- drive terms (cart/pendulum excitation)
-
-Modes:
-- controlled by `mode` string (default: `'damped_both'`)
-
-Provides:
-- `positions(state)` for animation (pivot and tip)
-- `energy(state)` and energy drift checks
+- `positions(state)` returns key points for animation (pivot/COM/tip).
+- `energy_check(state)` returns energy parts used for validation plots.
 
 ---
 
-## Van der Pol oscillator (`dss/models/vanderpol_circuit.py`)
+## Double pendulum (`DoublePendulum`)
 
-Circuit form (parallel LC with nonlinear resistor).
+**File:** `dss/models/double_pendulum.py`  
+**State:** `x = [theta1, theta1_dot, theta2, theta2_dot]`
 
-State:
-- typically voltage and inductor current (see `state_labels()`)
+Angles are absolute (each link measured from downward vertical). The second link angle is not relative by default.
 
-Parameters:
-- `L=1.0`, `C=1.0`, `mu=1.0`
+### Modes
 
-Provides:
-- `observables(state)` and labels for additional plotting
-- `positions(state)` (used for simple 2D representation if needed)
+- `ideal`
+- `damped`
+- `driven` (harmonic torques on joint 1 and/or 2)
+- `dc_driven` (external torques passed via `inputs` conceptually)
+
+### Key parameters
+
+- `length1, mass1`, `length2, mass2`
+- `damping1, damping2` and `coulomb1, coulomb2`
+- `drive1_*` and `drive2_*` (amplitude/frequency/phase per joint)
+- `mass_model`: `"uniform"` or `"point"`
+- `I1, lc1, I2, lc2`: optional overrides
+- `coulomb_vel_eps`: smoothing around zero velocity
+
+### Geometry and energy
+
+- `positions(state)` returns pivot, mass1, mass2 coordinates.
+- `energy_check(state)` returns energy parts suitable for conservation/drift checks.
 
 ---
 
-## Lorenz system (`dss/models/lorenz.py`)
+## Inverted pendulum on a cart (`InvertedPendulum`)
 
-State:
-- `x`, `y`, `z`
+**File:** `dss/models/inverted_pendulum.py`  
+**State:** `x = [cart_pos, cart_vel, theta, theta_dot]`
 
-Parameters:
-- `sigma=10`, `rho=28`, `beta=8/3` (classic chaotic setting)
+- `cart_pos`: cart position along track (m)
+- `cart_vel`: cart velocity (m/s)
+- `theta`: pendulum angle (rad), measured from downward vertical
+- `theta_dot`: angular velocity (rad/s)
 
-Provides:
-- `observables(state)` for plotting derived signals
+### Modes
+
+The cart–pole model supports viscous + Coulomb friction and optional harmonic drives:
+
+- friction:
+  - `b_cart`, `coulomb_cart`
+  - `b_pend`, `coulomb_pend`
+- drives:
+  - `cart_drive_*`: external force on cart
+  - `pend_drive_*`: external torque on pivot
+
+Coulomb friction is smoothed using `coulomb_k` (gain for `tanh` smoothing).
+
+### Key parameters
+
+- `length`, `mass` (pendulum), `cart_mass`
+- `mass_model`: `"point"` or `"uniform"` (inertia and COM location)
+- `I_com`, `lc`: optional overrides
+- `gravity`
+
+### Geometry and energy
+
+- `positions(state)` returns cart pivot and pendulum tip coordinates.
+- `energy_check(state)` is provided for diagnostic plots.
 
 ---
 
-## DC motor (`dss/models/dc_motor.py`)
+## Lorenz system (`Lorenz`)
 
-State:
-- `i` [A] (armature current)
-- `omega` [rad/s] (angular speed)
+**File:** `dss/models/lorenz.py`  
+**State:** `x = [x, y, z]`
 
-Equations:
-- `L di/dt = v(t) - R i - Ke ω`
-- `J dω/dt = Kt i - b ω - τ_load`
+The Lorenz system is an autonomous ODE and does not use external inputs.
 
-Parameters (required):
-- `R`, `L`, `Ke`, `Kt`, `Im` (rotor inertia), `bm` (viscous friction)
+### Parameters
 
-Inputs:
-- `voltage_func`: callable `v(t)` or a constant (default `6.0`)
-- `load_func`: callable `tau(t, omega)` or a constant (default `0.0`)
+- `sigma`, `rho`, `beta`
+
+### Notes
+
+- Lorenz is commonly simulated on shorter horizons (e.g., 5–30 seconds) with moderate tolerances.
+- Visualization typically uses:
+  - 3D trajectory `(x(t), y(t), z(t))`,
+  - time series for each coordinate,
+  - phase-plane projections.
+
+---
+
+## Van der Pol oscillator (circuit form) (`VanDerPol`)
+
+**File:** `dss/models/vanderpol_circuit.py`  
+**State:** `x = [v, iL]`
+
+- `v`: capacitor voltage (V)
+- `iL`: inductor current (A)
+
+The model implements a parallel LC with a nonlinear current source.
+
+### Parameters
+
+- `L`: inductance
+- `C`: capacitance
+- `mu`: nonlinearity strength in `i_nl(v) = mu*(v^3/3 - v)`
+
+### Notes
+
+- The GUI often displays phase portraits (`v` vs `iL`) and time series.
+- This model does not define `energy_check()` by default (you can add one if needed).
+
+---
+
+## DC motor (`DCMotor`)
+
+**File:** `dss/models/dc_motor.py`  
+**State:** `x = [i, omega]`
+
+- `i`: armature current (A)
+- `omega`: angular speed (rad/s)
+
+### Parameters
+
+Electrical:
+- `R`, `L`, `Ke`
+
+Mechanical:
+- `Kt`, `J` (or alias `Im`), `bm`
+
+### Inputs
+
+The motor includes built-in “runner-style” voltage/load configuration options used by the GUI:
+- voltage modes: constant, step, sine, PWM-like options (see file docstring)
+- load modes: none, constant, viscous, Coulomb-like (see file docstring)
+
+### Energy and diagnostics
+
+`energy_check(state)` is available and can be used to validate numeric behavior under different loads/voltages.

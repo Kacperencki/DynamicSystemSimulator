@@ -1,44 +1,71 @@
 # Controllers and wrappers
 
+This project separates **plant dynamics** (models) from **control logic** (controllers) and **composition** (wrappers).
+
+- Controllers compute an input \(u(t, x)\).
+- Wrappers combine plant + controller into a single system that can be integrated by the solver.
+
 ## Controllers (`dss/controllers/`)
 
-These are primarily used with the inverted pendulum (cart–pole), but are written in a reusable way.
+Controllers are primarily used with the inverted pendulum on a cart (cart–pole), but the pattern is reusable.
 
-- `linearize.py`: linearizes the cart–pole dynamics around the upright equilibrium.
-- `lqr_controller.py`: computes an LQR gain from the linearized model (continuous-time CARE).
-- `swingup.py`: swing-up logic for bringing the pendulum near the upright position.
-- `switcher.py` / `simple_switcher.py`: switch between swing-up and stabilization based on angle/speed thresholds and dwell times.
+### LQR (`lqr_controller.py`)
 
-Typical usage pattern (conceptual):
+- Linearizes the cart–pole around the upright equilibrium.
+- Solves the continuous-time CARE to compute an LQR gain.
+- Produces a stabilizing control law near the linearization point.
 
-1. Create a plant (`InvertedPendulum`)
-2. Create an LQR controller tuned around the upright
-3. Use a swing-up controller to inject energy
-4. Switch modes when close enough to upright
+Typical use:
+- only enable LQR when the pendulum is sufficiently close to upright (small angle and/or energy threshold),
+- optionally saturate the resulting force.
 
-The Streamlit runner for the inverted pendulum exposes open-loop and closed-loop runs.
+### Swing-up (`swingup.py`)
+
+- Energy-shaping style control to inject/remove energy until the system approaches the upright region.
+- Usually combined with a switching logic to hand over to LQR near upright.
+
+### Switchers (`switcher.py`, `simple_switcher.py`)
+
+- Combine swing-up and stabilizer controllers.
+- The “simple” version typically uses a crisp condition (either swing-up or LQR), while the other may include blending or hysteresis.
+
+## Controller interface
+
+A controller should be callable as:
+
+```python
+u = controller(t, state)
+```
+
+Some controllers also expose explicit methods such as `cart_force(t, state)`; the callable interface is recommended so wrappers can treat controllers uniformly.
 
 ## Wrappers (`dss/wrappers/`)
 
-Wrappers compose dynamics by forwarding states and adding additional states/inputs.
+Wrappers are objects that behave like models from the solver’s point of view: they expose a `dynamics(t, state, inputs=None)` method.
 
-### MotorWrapper (`motor_wrapper.py`)
+### Closed-loop cart wrapper (`closed_loop_cart.py`)
 
-Adds an electrical state (current) and couples a DC motor to a mechanical plant via gear ratio and efficiency.
+Composes:
+- a cart–pole plant model
+- a controller that outputs cart force
 
-State becomes:
+The wrapper:
+1. computes `u = controller(t, state)`
+2. calls the plant dynamics with that input
 
-- `[i, ...plant_state]`
+This turns “plant + controller” into a single ODE \(\dot{x} = f(t, x)\) suitable for the solver.
 
-It computes:
-- electrical ODE for `i`,
-- motor torque delivered to the plant,
-- forwards into `plant.dynamics(t, plant_state, tau_drive)`.
+### Motor wrapper (`motor_wrapper.py`)
 
-### ClosedLoopCart (`closed_loop_cart.py`)
+If you model an actuator separately from the plant (e.g., DC motor producing torque), the wrapper pattern keeps the interface clean:
+- the solver integrates one combined state,
+- the wrapper routes signals between subsystems.
 
-Wraps a cart–pole plant with a controller object exposing a method like `cart_force(t, state)`.
+## Practical guidance
 
-The wrapper’s `dynamics` calls the controller to compute input force, then calls the plant dynamics.
-
-Note: filename contains a typo (`closed_loop_cart.py`); keep this in mind when importing.
+- Keep controllers side-effect free: given `(t, x)`, return `u`.
+- Avoid importing Streamlit in controllers/wrappers.
+- If you add new control options, add a small unit test ensuring:
+  - output is finite,
+  - wrapper dynamics returns correct shape,
+  - closed-loop runs for a short horizon without NaNs.

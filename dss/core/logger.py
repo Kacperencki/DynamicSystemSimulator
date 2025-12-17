@@ -143,3 +143,49 @@ class SimulationLogger:
             f.write(json.dumps(_to_serializable(record)) + "\n")
 
         return run_id
+
+
+    def make_run_dir(self, run_id: str) -> str:
+        """Create a directory for this run and return its path."""
+        run_dir = os.path.join(self.log_dir, run_id)
+        os.makedirs(run_dir, exist_ok=True)
+        return run_dir
+
+    def save_config(self, run_dir: str, config: Dict[str, Any], *, filename: str = "config.json") -> str:
+        path = os.path.join(run_dir, filename)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(_to_serializable(config), f, indent=2)
+        return path
+
+    def save_output_npz(
+        self,
+        run_dir: str,
+        *,
+        T: np.ndarray,
+        X: np.ndarray,
+        extras: Optional[Dict[str, Any]] = None,
+        filename: str = "output.npz",
+    ) -> str:
+        path = os.path.join(run_dir, filename)
+        payload: Dict[str, Any] = {"T": np.asarray(T), "X": np.asarray(X)}
+        if extras:
+            for k, v in extras.items():
+                if isinstance(v, np.ndarray):
+                    payload[k] = v
+        np.savez_compressed(path, **payload)
+        return path
+
+    def save_bundle(
+        self,
+        *,
+        run_id: str,
+        config: Dict[str, Any],
+        T: np.ndarray,
+        X: np.ndarray,
+        extras: Optional[Dict[str, Any]] = None,
+    ) -> str:
+        """Save config + arrays into a dedicated run directory."""
+        run_dir = self.make_run_dir(run_id)
+        self.save_config(run_dir, config)
+        self.save_output_npz(run_dir, T=T, X=X, extras=extras)
+        return run_dir

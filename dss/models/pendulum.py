@@ -57,11 +57,14 @@ class Pendulum:
     # ======================================================================
     # Public API
     # ======================================================================
-    def dynamics(self, t, state, tau_drive=None):
+    def dynamics(self, t, state, inputs=None, tau_drive=None):
         """
         Main dispatcher. All modes go through the same pattern:
             I*theta_ddot = tau_ext + tau_harm - tau_visc - tau_coul - tau_grav
         """
+        if inputs is not None and tau_drive is None:
+            tau_drive = inputs
+
         if self.mode == "ideal":
             return self._dynamics_core(t, state,
                                        include_viscous=False,

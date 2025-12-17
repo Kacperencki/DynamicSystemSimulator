@@ -15,7 +15,7 @@ class Lorenz:
         self.rho = float(rho)
         self.beta = float(beta)
 
-    def dynamics(self, t, state):
+    def dynamics(self, t, state, inputs=None):
         x, y, z = state
         x = float(x)
         y = float(y)

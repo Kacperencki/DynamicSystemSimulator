@@ -6,7 +6,7 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from apps.streamlit.components.dashboards._common import downsample_idx, pad_range
+from apps.streamlit.components.dashboards._common import downsample_idx, pad_range, cfg_param, solver_param
 Cfg = Dict[str, Any]
 Out = Dict[str, Any]
 
@@ -44,7 +44,7 @@ def make_dc_motor_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go.Figure
     max_plot_pts = int(ui.get("max_plot_pts", 2600))
 
     # frame selection
-    dt_sim = float(np.mean(np.diff(T))) if len(T) > 1 else max(float(cfg.get("dt", 0.002)), 1e-6)
+    dt_sim = float(np.mean(np.diff(T))) if len(T) > 1 else max(float(cfg_param(cfg, "dt", 0.002)), 1e-6)
     step = max(1, int(round(1.0 / (max(1, fps_anim) * dt_sim))))
     frame_idx = np.arange(0, len(T), dtype=int)[::step]
     if len(frame_idx) > max_frames:

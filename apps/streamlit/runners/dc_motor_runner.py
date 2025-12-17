@@ -6,29 +6,24 @@ from typing import Dict, Tuple
 
 import numpy as np
 
-from dss.models.dc_motor import DCMotor
-from dss.core.solver import Solver
+from apps.streamlit.runners._common import run_from_cfg
 
 
 def _voltage_profile(t: np.ndarray, mode: str, p: Dict) -> np.ndarray:
     V0 = float(p.get("V0", 0.0))
     off = float(p.get("v_offset", 0.0))
     t_step = float(p.get("t_step", 0.0))
-    f = float(p.get("v_freq", 1.0))
+    freq = float(p.get("v_freq", 1.0))
     duty = float(p.get("v_duty", 0.5))
 
-    if mode == "constant":
-        return off + V0 * np.ones_like(t)
     if mode == "step":
-        return off + V0 * (t >= t_step).astype(float)
-    if mode == "ramp":
-        return off + V0 * np.clip((t - t_step), 0.0, None)
+        return off + (t >= t_step).astype(float) * V0
     if mode == "sine":
-        return off + V0 * np.sin(2.0 * np.pi * f * t)
+        return off + V0 * np.sin(2.0 * np.pi * freq * t)
     if mode == "square":
-        phase = (f * t) % 1.0
+        phase = (freq * t) % 1.0
         return off + V0 * (phase < duty).astype(float)
-    return off + V0 * np.ones_like(t)
+    return off + 0.0 * t
 
 
 def run_dc_motor(
@@ -41,96 +36,35 @@ def run_dc_motor(
     method: str = "RK45",
     rtol: float = 1e-4,
     atol: float = 1e-6,
+    save_run: bool = False,
+    log_dir: str = "logs",
+    run_name: str = "",
 ) -> Tuple[Dict, Dict]:
-    R = float(params["R"])
-    L = float(params["L"])
-    Ke = float(params["Ke"])
-    Kt = float(params["Kt"])
-    J = float(params["J"])
-    bm = float(params["bm"])
-
-    v_mode = str(params["v_mode"])
-    V0 = float(params.get("V0", 0.0))
-    v_offset = float(params.get("v_offset", 0.0))
-    t_step = float(params.get("t_step", 0.05))
-    v_freq = float(params.get("v_freq", 1.0))
-    v_duty = float(params.get("v_duty", 0.5))
-
-    load_mode = str(params.get("load_mode", "none"))
-    tau_load = float(params.get("tau_load", 0.0))
-    b_load = float(params.get("b_load", 0.0))
-    tau_c = float(params.get("tau_c", 0.0))
-    omega_eps = float(params.get("omega_eps", 0.5))
-
     i0 = float(ic["i0"])
     omega0 = float(ic["omega0"])
 
-    T_total = float(t1 - t0)
-    fps_eff = max(1, int(round(1.0 / dt))) if dt > 0 else 60
+    # Pass all motor params through; the model supports both runner-style fields and legacy hooks.
+    cfg = {
+        "model": {"name": "dc_motor", "mode": "default", "params": dict(params)},
+        "initial_state": [i0, omega0],
+        "solver": {"t0": float(t0), "t1": float(t1), "dt": float(dt), "method": str(method), "rtol": float(rtol), "atol": float(atol)},
+    }
 
-    motor = DCMotor(
-        R=R,
-        L=L,
-        Ke=Ke,
-        Kt=Kt,
-        J=J,
-        bm=bm,
-        v_mode=v_mode,
-        V0=V0,
-        v_offset=v_offset,
-        t_step=t_step,
-        v_freq=v_freq,
-        v_duty=v_duty,
-        load_mode=load_mode,
-        tau_load=tau_load,
-        b_load=b_load,
-        tau_c=tau_c,
-        omega_eps=omega_eps,
-    )
+    cfg2, out = run_from_cfg(cfg, save_run=save_run, log_dir=log_dir, run_name=run_name)
 
-    sol = Solver(
-        motor,
-        initial_conditions=[i0, omega0],
-        T=T_total,
-        fps=fps_eff,
-        method=str(method),
-        rtol=float(rtol),
-        atol=float(atol),
-    ).run()
-    T = sol.t
-    X = sol.y.T
+    T = np.asarray(out["T"])
+    X = np.asarray(out["X"])
 
-    # Derived signals
-    V = _voltage_profile(T, v_mode, dict(V0=V0, v_offset=v_offset, t_step=t_step, v_freq=v_freq, v_duty=v_duty))
-    theta = np.cumsum(X[:, 1]) * (float(np.mean(np.diff(T))) if len(T) > 1 else 0.0)
+    # Derived signals for dashboard: applied voltage and angle theta(t)=∫omega dt
+    v_mode = str(params.get("v_mode", "step"))
+    V = _voltage_profile(T, v_mode, params)
 
-    cfg = dict(
-        sys="dcm",
-        solver_method=str(method),
-        rtol=float(rtol),
-        atol=float(atol),
-        R=R,
-        L=L,
-        Ke=Ke,
-        Kt=Kt,
-        J=J,
-        bm=bm,
-        v_mode=v_mode,
-        V0=V0,
-        v_offset=v_offset,
-        t_step=t_step,
-        v_freq=v_freq,
-        v_duty=v_duty,
-        load_mode=load_mode,
-        tau_load=tau_load,
-        b_load=b_load,
-        tau_c=tau_c,
-        omega_eps=omega_eps,
-        i0=i0,
-        omega0=omega0,
-        t0=t0,
-        t1=t1,
-        dt=dt,
-    )
-    out = dict(T=T, X=X, V=V, theta=theta)
-    return cfg, out
+    omega = X[:, 1]
+    theta = np.zeros_like(omega)
+    if len(T) >= 2:
+        dt_local = np.diff(T)
+        theta[1:] = np.cumsum(0.5 * (omega[1:] + omega[:-1]) * dt_local)
+
+    out["V"] = V
+    out["theta"] = theta
+    return cfg2, out

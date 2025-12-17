@@ -1,27 +1,28 @@
-# Python
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
-*.pyo
-*.pyd
 
-# Virtual envs
+# Virtual environments
 .venv/
 venv/
 ENV/
 env/
 
-# Packaging
-*.egg-info/
-dist/
+# Packaging / build
 build/
+dist/
+*.egg-info/
 
-# Tool caches
+# Test / lint caches
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
 .coverage
 htmlcov/
+
+# MkDocs
+site/
 
 # IDEs
 .vscode/
@@ -31,7 +32,7 @@ htmlcov/
 .DS_Store
 Thumbs.db
 
-# Runtime artifacts
+# Runtime / app outputs
+artifacts/
 logs/
 .streamlit/
-

@@ -6,8 +6,7 @@ from typing import Dict, Tuple
 
 import numpy as np
 
-from dss.models.lorenz import Lorenz
-from dss.core.solver import Solver
+from apps.streamlit.runners._common import run_from_cfg
 
 
 def run_lorenz(
@@ -20,41 +19,24 @@ def run_lorenz(
     method: str = "RK45",
     rtol: float = 1e-4,
     atol: float = 1e-6,
+    save_run: bool = False,
+    log_dir: str = "logs",
+    run_name: str = "",
 ) -> Tuple[Dict, Dict]:
-    sigma, rho, beta = params["sigma"], params["rho"], params["beta"]
-    x0, y0, z0 = ic["x0"], ic["y0"], ic["z0"]
+    sigma = float(params["sigma"])
+    rho = float(params["rho"])
+    beta = float(params["beta"])
 
-    T_total = float(t1 - t0)
-    fps_eff = max(1, int(round(1.0 / dt))) if dt > 0 else 60
+    x0 = float(ic["x0"])
+    y0 = float(ic["y0"])
+    z0 = float(ic["z0"])
 
-    sys = Lorenz(sigma=sigma, rho=rho, beta=beta)
+    cfg = {
+        "model": {"name": "lorenz", "mode": "default", "params": {"sigma": sigma, "rho": rho, "beta": beta}},
+        "initial_state": [x0, y0, z0],
+        "solver": {"t0": float(t0), "t1": float(t1), "dt": float(dt), "method": str(method), "rtol": float(rtol), "atol": float(atol)},
+    }
 
-    sol = Solver(
-        sys,
-        initial_conditions=[x0, y0, z0],
-        T=T_total,
-        fps=fps_eff,
-        method=str(method),
-        rtol=float(rtol),
-        atol=float(atol),
-    ).run()
-    T = sol.t
-    X = sol.y.T
+    cfg2, out = run_from_cfg(cfg, save_run=save_run, log_dir=log_dir, run_name=run_name)
+    return cfg2, out
 
-    cfg = dict(
-        sys="lorenz",
-        solver_method=str(method),
-        rtol=float(rtol),
-        atol=float(atol),
-        sigma=sigma,
-        rho=rho,
-        beta=beta,
-        x0=x0,
-        y0=y0,
-        z0=z0,
-        t0=t0,
-        t1=t1,
-        dt=dt,
-    )
-    out = dict(T=T, X=X)
-    return cfg, out

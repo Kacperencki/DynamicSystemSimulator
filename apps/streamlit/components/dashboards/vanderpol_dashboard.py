@@ -6,7 +6,7 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from apps.streamlit.components.dashboards._common import downsample_idx, pad_range, duration_ms_from_frames
+from apps.streamlit.components.dashboards._common import downsample_idx, pad_range, cfg_param, solver_param, duration_ms_from_frames
 Cfg = Dict[str, Any]
 Out = Dict[str, Any]
 
@@ -35,7 +35,7 @@ def make_vanderpol_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go.Figur
     trail_max_points = int(ui.get("trail_max_points", 240))
 
     # frame selection
-    dt_sim = float(np.mean(np.diff(T))) if len(T) > 1 else max(float(cfg.get("dt", 0.01)), 1e-6)
+    dt_sim = float(np.mean(np.diff(T))) if len(T) > 1 else max(float(solver_param(cfg, "dt", 0.01)), 1e-6)
     step = max(1, int(round(1.0 / (max(1, fps_anim) * dt_sim))))
     frame_idx = np.arange(0, len(T), dtype=int)[::step]
     if len(frame_idx) > max_frames:

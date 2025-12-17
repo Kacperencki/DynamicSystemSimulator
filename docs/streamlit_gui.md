@@ -2,68 +2,92 @@
 
 ## Entry point
 
-`apps/streamlit/app.py` is the Streamlit entrypoint:
-
-- loads CSS from `apps/streamlit/assets/style.css` (optional),
-- renders a left control column and a right dashboard column,
-- uses `apps/streamlit/registry.py` to populate the model selector.
-
-Run:
+The GUI is launched from the repository root:
 
 ```bash
-streamlit run apps/streamlit/app.py
+streamlit run streamlit_app.py
 ```
 
-## The `SystemSpec` pattern
+`streamlit_app.py` is intentionally small:
+- sets Streamlit page config (`layout="wide"`),
+- loads optional CSS from `apps/streamlit/assets/style.css`,
+- renders a two-column layout (controls on the left, content on the right),
+- delegates rendering to a selected `SystemSpec`.
 
-Systems are registered as `SystemSpec` objects (see `apps/streamlit/layout.py`).
+## SystemSpec: the GUI “contract”
 
-A `SystemSpec` binds:
+DSS uses a **SystemSpec** pattern (`apps/streamlit/layout.py`) to keep each system modular.
 
-- `controls(prefix) -> Controls`: renders Streamlit widgets and returns a dict (must include `run_clicked`)
-- `run(controls) -> (cfg, out)`: runs the simulation and returns config + outputs
-- `make_dashboard(cfg, out, controls) -> plotly.graph_objects.Figure`: builds a single composed dashboard figure
+A `SystemSpec` bundles:
 
-Fallback mode exists (`make_animation` + `plots[]`) but the preferred UX is the single dashboard.
+- **Controls**: a function that renders widgets and returns a controls dictionary
+- **Run**: a function that turns controls into `(cfg, out)` (numerical result)
+- **Dashboard**: a function that turns `(cfg, out)` into a Plotly figure (or multiple panels)
 
-### Minimal `SystemSpec`
+Simplified shape:
 
 ```python
-from apps.streamlit.layout import SystemSpec
+Controls = Dict[str, Any]
+Cfg = Dict[str, Any]
+Out = Dict[str, Any]  # must include at least: T (N,), X (N, n_state)
 
-def controls(prefix: str) -> dict: ...
-def run(controls: dict) -> tuple[dict, dict]: ...
-def make_dashboard(cfg: dict, out: dict, controls: dict): ...
-
-spec = SystemSpec(
-    id="my_system",
-    title="My system",
-    controls=controls,
-    run=run,
-    make_dashboard=make_dashboard,
-)
+class SystemSpec:
+    controls(prefix: str) -> Controls
+    run(controls: Controls) -> tuple[Cfg, Out]
+    make_dashboard(cfg: Cfg, out: Out, controls: Controls) -> plotly.graph_objects.Figure
 ```
 
-## Where per-system code lives
+## Registry
 
-For a system named `X`:
+Available systems are registered in `apps/streamlit/registry.py` as lazy factories:
 
-- Controls/spec: `apps/streamlit/systems/x_view.py` (`get_spec()`)
-- Runner (simulation): `apps/streamlit/runners/x_runner.py`
-- Dashboard: `apps/streamlit/components/dashboards/x_dashboard.py`
-- Registration: `apps/streamlit/registry.py`
+- `SYSTEM_FACTORIES: Dict[str, Callable[[], SystemSpec]]`
+- `SYSTEM_LEGACY: Dict[str, Callable[[], None]]` (temporary, for systems not yet migrated)
 
-## Output conventions
+Each system lives in `apps/streamlit/systems/<name>_view.py` and must expose:
 
-Runners usually return:
+```python
+def get_spec() -> SystemSpec:
+    ...
+```
 
-- `cfg`: final numeric settings (T, dt/fps, parameter values)
-- `out`: a dict containing at least `t` and `X`:
-  - `t`: shape `(N,)`
-  - `X`: shape `(N, n_state)` or `(n_state, N)` depending on dashboard (most dashboards expect `(N, n_state)`)
+## Runners and dashboards
 
-Dashboards typically show:
-- time series panels,
-- phase portrait(s),
-- energy drift or invariants where applicable,
-- an animation panel (for mechanical systems).
+- Runners live in `apps/streamlit/runners/` and are responsible for:
+  - translating UI values into model/controller construction,
+  - selecting solver settings (`T`, `dt/fps`, method, tolerances),
+  - returning `(cfg, out)`.
+
+- Dashboards live in `apps/streamlit/components/` and are responsible for:
+  - turning numeric arrays into Plotly figures,
+  - optionally creating animations using Plotly frames.
+
+To keep the GUI responsive, runners should:
+- avoid generating unnecessarily dense trajectories,
+- downsample data used for animation/plotting where appropriate.
+
+## Session state and reruns
+
+Streamlit reruns the script on every widget interaction. DSS avoids rerunning expensive simulations by:
+- storing results in `st.session_state`,
+- requiring an explicit **Run** action (usually a button) in the controls.
+
+If you add new widgets, follow the pattern used in existing systems:
+- use a system-specific `prefix` for widget keys,
+- store “last run” config/output in session state under that prefix.
+
+## Performance and message size
+
+Streamlit sends Plotly figures to the browser as JSON. Large animations can exceed Streamlit’s websocket message size limits.
+
+Typical causes:
+- too many time samples (`N` very large),
+- too many animation frames,
+- each frame repeating the entire history (“trail”) arrays.
+
+Mitigation (recommended):
+- limit `fps` for plotting/animation,
+- cap number of frames for animated figures,
+- avoid full-history traces in every frame.
+
+If you see `MessageSizeError`, reduce the amount of data sent to the browser before increasing Streamlit limits.

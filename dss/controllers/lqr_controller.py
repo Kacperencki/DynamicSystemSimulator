@@ -93,6 +93,11 @@ class AutoLQR:
         u = float(-(self.K @ dx.reshape(4, 1))[0, 0])
         return float(np.clip(u, -self.force_limit, self.force_limit))
 
+
+    # Make controllers uniformly callable: u = pi(t, x)
+    def __call__(self, t, state):
+        return self.cart_force(t, state)
+
     def retune(self, **plant_changes):
         """
         Optional helper: update plant params then recompute A,B and K.

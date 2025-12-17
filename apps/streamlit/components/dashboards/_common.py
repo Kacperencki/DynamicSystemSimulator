@@ -45,3 +45,47 @@ def duration_ms_from_frames(T: np.ndarray, frame_idx: np.ndarray, *, fps_fallbac
         return int(round(1000.0 / max(1, int(fps_fallback))))
 
     return max(1, int(round(1000.0 * dt)))
+
+
+from typing import Any, Dict, Mapping, Optional
+
+
+def cfg_params(cfg: Mapping[str, Any]) -> Dict[str, Any]:
+    """Return the model params dict from a structured cfg, or {}."""
+    model = cfg.get("model")
+    if isinstance(model, dict):
+        params = model.get("params")
+        if isinstance(params, dict):
+            return params
+    return {}
+
+
+def cfg_solver(cfg: Mapping[str, Any]) -> Dict[str, Any]:
+    """Return the solver dict from a structured cfg, or {}."""
+    solver = cfg.get("solver")
+    if isinstance(solver, dict):
+        return solver
+    return {}
+
+
+def cfg_param(cfg: Mapping[str, Any], key: str, default: Any = None) -> Any:
+    """Get a model parameter from cfg, supporting both nested and flat configs."""
+    params = cfg_params(cfg)
+    if key in params:
+        return params[key]
+    # fallback: some legacy pieces may still put parameters at top-level
+    try:
+        return cfg.get(key, default)
+    except Exception:
+        return default
+
+
+def solver_param(cfg: Mapping[str, Any], key: str, default: Any = None) -> Any:
+    """Get a solver parameter from cfg (nested or flat)."""
+    solver = cfg_solver(cfg)
+    if key in solver:
+        return solver[key]
+    try:
+        return cfg.get(key, default)
+    except Exception:
+        return default

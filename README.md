@@ -1,26 +1,33 @@
 # Dynamic System Simulator (DSS)
 
-DSS is a small Python toolkit for simulating classic dynamical systems (mechanical + electrical) and exploring their trajectories through an interactive **Streamlit + Plotly** GUI.
+Dynamic System Simulator (DSS) is a Python project for simulating classic dynamical systems (mechanical, electrical, and electromechanical) with an interactive **Streamlit + Plotly** GUI and a small, reusable numerical core.
 
-The repository has two main parts:
+## Key features
 
-- `dss/`: the core simulation library (models, solver, controllers, wrappers, logging, reproducibility scripts)
-- `apps/streamlit/`: the Streamlit application (controls, runners, dashboards, registry)
+- Multiple built-in systems: pendulums (single/double), cart–pole, Lorenz, Van der Pol (circuit form), DC motor
+- Thin solver wrapper built on `scipy.integrate.solve_ivp` (RK45, DOP853, Radau, BDF, …)
+- Consistent, extensible Streamlit GUI based on a **SystemSpec** pattern (controls → run → dashboard)
+- Optional logging utilities for reproducible runs (config + numerical output bundles)
+- Scripts for generating figures and tables under `scripts/` (e.g., for experiments/validation)
 
-## Systems included
+## Repository layout
 
-- Single pendulum (ideal / damped / driven)
-- Double pendulum (including chaotic demos)
-- Inverted pendulum on a cart (open-loop + closed-loop)
-- Van der Pol oscillator (circuit form)
-- Lorenz system
-- DC motor (electromechanical model)
+- `dss/` — core library (models, solver/simulator, controllers, wrappers, logger)
+- `apps/streamlit/` — Streamlit UI (systems, runners, dashboards, shared UI components)
+- `scripts/` — offline experiments (write outputs to `artifacts/`)
+- `artifacts/` — generated outputs (not meant to be committed)
+- `docs/` + `mkdocs.yml` — documentation (MkDocs)
 
-## Quick start
+## Requirements
 
-### 1) Install dependencies
+- Python **3.10+**
+- Recommended: create and use a virtual environment
 
-Create and activate a virtual environment, then install:
+Core dependencies are defined in `pyproject.toml`. A minimal `requirements.txt` is also provided.
+
+## Installation
+
+Editable installation is recommended so imports work consistently in IDEs and when launching Streamlit:
 
 ```bash
 python -m venv .venv
@@ -31,159 +38,72 @@ source .venv/bin/activate
 
 python -m pip install --upgrade pip
 python -m pip install -e .
-# or (legacy): python -m pip install -r requirements.txt
 ```
 
-### 2) Run the Streamlit GUI
-
-Run from the project root:
+If you plan to work on the GUI and docs:
 
 ```bash
-streamlit run apps/streamlit/app.py
+python -m pip install -e ".[gui,dev]"
 ```
 
-If you see `ModuleNotFoundError: No module named 'apps'`, install the project in editable mode (`python -m pip install -e .`) and rerun Streamlit. See `docs/troubleshooting.md`.
+## Run the Streamlit GUI
 
-## Core usage (without Streamlit)
+From the project root:
 
-Minimal example using the solver directly:
-
-```python
-import numpy as np
-from dss.models.pendulum import Pendulum
-from dss.core.solver import Solver
-
-system = Pendulum(length=1.0, mass=1.0, mode="damped", damping=0.02, gravity=9.81)
-x0 = np.array([0.6, 0.0])  # [theta, theta_dot]
-
-sol = Solver(system, x0, T=10.0, fps=200, method="RK45").run()
-
-t = sol.t              # shape: (N,)
-X = sol.y.T            # shape: (N, n_state)
+```bash
+streamlit run streamlit_app.py
 ```
 
-## Project layout
+## Run scripts (offline artifacts)
 
-```text
-dss_proj/
-├── apps/
-│   ├── __init__.py
-│   └── streamlit/
-│       ├── __init__.py
-│       ├── app.py
-│       ├── assets/
-│       │   └── style.css
-│       ├── components/
-│       │   ├── animations.py
-│       │   ├── controls_common.py
-│       │   ├── dashboards/
-│       │   └── plots_view.py
-│       ├── layout.py
-│       ├── registry.py
-│       ├── runners/
-│       │   ├── dc_motor_runner.py
-│       │   ├── inverted_runner.py
-│       │   ├── lorenz_runner.py
-│       │   ├── pendulum_runner.py
-│       │   └── vanderpol_runner.py
-│       └── systems/
-│           ├── dc_motor_view.py
-│           ├── double_pendulum_view.py
-│           ├── inverted_pendulum_view.py
-│           ├── lorenz_view.py
-│           ├── single_pendulum_view.py
-│           └── vanderpol_view.py
-├── docs/
-└── dss/
-    ├── __init__.py
-    ├── controllers/
-    │   ├── __init__.py
-    │   ├── linearize.py
-    │   ├── lqr_controller.py
-    │   ├── simple_switcher.py
-    │   ├── swingup.py
-    │   └── switcher.py
-    ├── core/
-    │   ├── __init__.py
-    │   ├── experiments.py
-    │   ├── logger.py
-    │   ├── presets.py
-    │   ├── simulator.py
-    │   └── solver.py
-    ├── models/
-    │   ├── __init__.py
-    │   ├── dc_motor.py
-    │   ├── double_pendulum.py
-    │   ├── inverted_pendulum.py
-    │   ├── lorenz.py
-    │   ├── pendulum.py
-    │   └── vanderpol_circuit.py
-    ├── scripts/
-    │   ├── data/
-    │   │   ├── ch6_dc_motor_step_summary.csv
-    │   │   ├── ch6_dc_motor_step_timeseries.csv
-    │   │   ├── ch6_double_chaos_summary.csv
-    │   │   ├── ch6_double_chaos_timeseries.csv
-    │   │   ├── ch6_gallery_dc_motor.csv
-    │   │   ├── ch6_gallery_double_pendulum.csv
-    │   │   ├── ch6_gallery_inverted_lqr.csv
-    │   │   ├── ch6_gallery_inverted_swingup.csv
-    │   │   ├── ch6_gallery_lorenz.csv
-    │   │   ├── ch6_gallery_pendulum.csv
-    │   │   ├── ch6_gallery_vdp.csv
-    │   │   ├── ch6_inverted_lqr_timeseries.csv
-    │   │   ├── ch6_inverted_summary.csv
-    │   │   ├── ch6_inverted_swingup_timeseries.csv
-    │   │   ├── ch6_lorenz_summary.csv
-    │   │   ├── ch6_lorenz_timeseries.csv
-    │   │   ├── ch6_pendulum_small_angle_summary.csv
-    │   │   ├── ch6_pendulum_small_angle_timeseries.csv
-    │   │   ├── ch6_vdp_limit_cycle_summary.csv
-    │   │   └── ch6_vdp_limit_cycle_timeseries.csv
-    │   ├── dc_motor_step.py
-    │   ├── double_p_chaos.py
-    │   ├── figs/
-    │   │   ├── ch6_dc_motor_step_response.png
-    │   │   ├── ch6_double_angle_difference.png
-    │   │   ├── ch6_double_energy_drift.png
-    │   │   ├── ch6_inverted_lqr_theta.png
-    │   │   ├── ch6_inverted_swingup_theta.png
-    │   │   ├── ch6_lorenz_attractor_3d.png
-    │   │   ├── ch6_lorenz_difference.png
-    │   │   ├── ch6_pendulum_energy_drift.png
-    │   │   ├── ch6_pendulum_theta.png
-    │   │   ├── ch6_runtime_per_model.png
-    │   │   ├── ch6_runtime_vs_tol_pendulum.png
-    │   │   ├── ch6_vdp_phase_portrait.png
-    │   │   └── ch6_vdp_time_series.png
-    │   ├── gallery.py
-    │   ├── inverted_case_study.py
-    │   ├── logs/
-    │   │   └── runs.jsonl
-    │   ├── lorenz_attractor.py
-    │   ├── pendulum_small_ang.py
-    │   ├── performance.py
-    │   └── vdp_limit_cycle.py
-    └── wrappers/
-        ├── __init__.py
-        ├── closed_loop_cart.py
-        └── motor_wrapper.py
+Scripts live in `scripts/` and should write outputs into `artifacts/`:
+
+```bash
+python scripts/pendulum_small_ang.py
+python scripts/double_p_chaos.py
+python scripts/vdp_limit_cycle.py
+python scripts/lorenz_attractor.py
+python scripts/performance.py
 ```
 
-## Documentation
+## Documentation (MkDocs)
 
-Start here:
+```bash
+pip install -e ".[dev]"
+mkdocs serve
+```
 
-- `docs/overview.md` – what DSS is and how it is organized
-- `docs/installation.md` – setup instructions
-- `docs/streamlit_gui.md` – how the GUI is structured (SystemSpec pattern)
-- `docs/models.md` – state definitions, parameters, and conventions per model
-- `docs/core_api.md` – solver, diagnostics, logger
-- `docs/extending.md` – how to add a new model end-to-end
-- `docs/scripts.md` – scripts used to generate data/figures (e.g., for Chapter 6)
-- `docs/troubleshooting.md` – common issues and fixes
+Then open the local MkDocs site shown in the console output.
 
-## Notes
+## Core conventions (important)
 
-- This repository uses a proper `pyproject.toml` so it can be installed with `pip install -e .` (recommended for Streamlit + IDEs).
-- `dss/core/simulator.py` is a lightweight high-level API that returns SciPy solutions; visualization lives in the Streamlit GUI.
+### Model interface
+Every model exposes a continuous-time ODE of the form \(\dot{x} = f(t, x, u)\). In code, this is represented by:
+
+- `dynamics(t: float, state: np.ndarray, inputs=None) -> np.ndarray`
+
+The solver calls `dynamics(t, state)` (no inputs). Controllers/wrappers may pass `inputs=...` when a model supports external actuation.
+
+### Runner output contract
+Runners (Streamlit and scripts) should return:
+- `cfg`: JSON-serializable configuration dictionary
+- `out`: dictionary containing at least:
+  - `T`: time array, shape `(N,)`
+  - `X`: state array, shape `(N, n_state)`
+
+Additional arrays (e.g., control `U`) can be included as extra keys.
+
+## Cleaning generated files
+
+Do not commit caches and generated outputs. Use the provided cleanup helpers:
+
+- `tools/cleanup_repo.py`
+- `tools/cleanup_repo.ps1`
+
+They remove `__pycache__`, `*.pyc`, and common build/test caches.
+
+## Where to start
+
+- `docs/overview.md` — architecture and data flow
+- `docs/streamlit_gui.md` — SystemSpec structure and how systems are wired
+- `docs/extending.md` — how to add a new model end-to-end

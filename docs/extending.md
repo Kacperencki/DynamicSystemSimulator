@@ -1,81 +1,168 @@
-# Extending DSS: adding a new model
+# Extending DSS
 
-This guide describes the end-to-end path to add a new system that appears in the Streamlit GUI.
+This page describes the recommended workflow for adding a new dynamical system end-to-end:
 
-## 1) Add (or import) a model in `dss/models/`
+1. Add a model under `dss/models/`
+2. Register it (so it can be created by name)
+3. (Optional) add controllers/wrappers
+4. Add a Streamlit SystemSpec under `apps/streamlit/systems/`
+5. Register the system in `apps/streamlit/registry.py`
 
-Create a file `dss/models/my_system.py` with:
+The goal is that **each new system looks like the existing ones**: same structure, same run flow, minimal copy-paste.
 
-- `class MySystem:`
-- `__init__(...)` with physical parameters
-- `dynamics(t, state, u=None)` returning `state_dot`
-- `state_labels()` for plots
-- optional: `positions(state)` if you want an animation
+---
 
-Recommendation: keep `dynamics()` pure and deterministic (no Streamlit inside).
+## 1) Add a new model
 
-## 2) Create a runner in `apps/streamlit/runners/`
+Create a new file:
 
-Runners are responsible for:
-- translating UI control values into model parameters,
-- building `x0` initial conditions,
-- choosing `T`, `dt` (or `fps`),
-- calling `Solver(...)` and formatting outputs.
+```
+dss/models/my_system.py
+```
 
-Example skeleton:
+Minimum required API:
 
 ```python
 import numpy as np
-from dss.core.solver import Solver
-from dss.models.my_system import MySystem
 
-def run_my_system(params: dict, ic: dict, t0: float, t1: float, dt: float):
-    system = MySystem(**params)
-    x0 = np.array([...], dtype=float)
+class MySystem:
+    def __init__(self, ...):
+        ...
 
-    T = float(t1 - t0)
-    fps = max(1, int(round(1.0 / dt)))
+    def state_labels(self):
+        return ["x1", "x2", ...]
 
-    sol = Solver(system, x0, T=T, fps=fps).run()
-    t = sol.t
-    X = sol.y.T
-
-    cfg = dict(T=T, dt=dt, params=params, ic=ic)
-    out = dict(t=t, X=X)
-    return cfg, out
+    def dynamics(self, t, state, inputs=None):
+        # return dx/dt as a 1D array of length n_state
+        return np.array([...], dtype=float)
 ```
 
-## 3) Create a dashboard in `apps/streamlit/components/dashboards/`
+Optional but recommended:
+- `positions(state)` for animations
+- `energy_check(state)` for validation plots
 
-Dashboards build a single Plotly figure for the “right panel”.
-They typically:
-- create a subplot grid,
-- plot time series and phase portraits,
-- add a cursor / index for animation synchronization if used.
+---
 
-Keep dashboards pure: input is `(cfg, out, controls)`.
+## 2) Register the model
 
-## 4) Create a per-system view + `SystemSpec`
+Add it to `dss/models/__init__.py` so it can be obtained through a registry (useful for scripts and uniform pipelines).
 
-Create `apps/streamlit/systems/my_system_view.py` with:
+Example:
 
-- `controls(prefix)`: Streamlit widgets (parameters, initial conditions, solver settings)
-- `run(controls)`: call your runner
-- `get_spec()`: return a `SystemSpec`
+```python
+from dss.models.my_system import MySystem
 
-## 5) Register in the GUI
+MODEL_REGISTRY["my_system"] = MySystem
+```
 
-Add import and entry in `apps/streamlit/registry.py`:
+---
+
+## 3) Optional: add controllers and wrappers
+
+Controllers live in `dss/controllers/` and should be callable:
+
+```python
+u = controller(t, state)
+```
+
+Wrappers live in `dss/wrappers/` and expose `dynamics(t, state, inputs=None)` so they can be integrated by the solver like a normal model.
+
+---
+
+## 4) Add a Streamlit SystemSpec
+
+Create:
+
+```
+apps/streamlit/systems/my_system_view.py
+```
+
+Follow the pattern used in existing views:
+
+- render a small set of parameter widgets,
+- call a runner function that returns `(cfg, out)`,
+- render a Plotly dashboard.
+
+Skeleton:
+
+```python
+from __future__ import annotations
+from typing import Any, Dict
+
+import streamlit as st
+from apps.streamlit.layout import SystemSpec
+from apps.streamlit.runners.my_system_runner import run_my_system
+from apps.streamlit.components.dashboards.my_system_dashboard import make_my_system_dashboard
+
+Cfg = Dict[str, Any]
+Out = Dict[str, Any]
+Controls = Dict[str, Any]
+
+def controls(prefix: str) -> Controls:
+    # Widgets must use the prefix for unique keys
+    p = lambda k: f"{prefix}_{k}"
+    run_clicked = st.button("Run", key=p("run"))
+    # add widgets...
+    return {"run_clicked": run_clicked, ...}
+
+def get_spec() -> SystemSpec:
+    return SystemSpec(
+        title="My system",
+        controls=controls,
+        run=run_my_system,
+        make_dashboard=make_my_system_dashboard,
+    )
+```
+
+---
+
+## 5) Add a runner
+
+Create:
+
+```
+apps/streamlit/runners/my_system_runner.py
+```
+
+Runners should:
+- build the model from control values,
+- set up the solver settings,
+- return a JSON-serializable config dict plus an output dict with at least `T` and `X`.
+
+---
+
+## 6) Add a dashboard
+
+Create:
+
+```
+apps/streamlit/components/dashboards/my_system_dashboard.py
+```
+
+Keep dashboards pure and deterministic:
+- accept `cfg`, `out`, `controls`
+- return a Plotly `Figure`
+
+---
+
+## 7) Register the system in the GUI registry
+
+Update `apps/streamlit/registry.py`:
 
 ```python
 from apps.streamlit.systems.my_system_view import get_spec as my_system_spec
 
-SYSTEM_SPECS["My system"] = my_system_spec()
+SYSTEM_FACTORIES["My system"] = my_system_spec
 ```
 
-## 6) Sanity checklist
+---
 
-- `dynamics` returns finite values for typical inputs
-- No NaNs/Inf after integration (`Solver` will raise)
-- `X` orientation matches what the dashboard expects (`(N, n_state)` is recommended)
-- Units are consistent (especially for gravity, lengths, motor constants)
+## Checklist
+
+Before considering the system “done”:
+
+- [ ] model runs via `dss.core.solver.Solver`
+- [ ] Streamlit system loads without import errors
+- [ ] runner returns `out["T"]` and `out["X"]` with correct shapes
+- [ ] plots render for at least one preset
+- [ ] (optional) add a quick `pytest` smoke test

@@ -6,7 +6,7 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from apps.streamlit.components.dashboards._common import downsample_idx, pad_range, duration_ms_from_frames
+from apps.streamlit.components.dashboards._common import downsample_idx, pad_range, cfg_param, solver_param, duration_ms_from_frames
 Cfg = Dict[str, Any]
 Out = Dict[str, Any]
 
@@ -30,8 +30,8 @@ def make_double_pendulum_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go
     th2 = X[:, 2]
     w2 = X[:, 3]
 
-    l1 = float(cfg["l1"])
-    l2 = float(cfg["l2"])
+    l1 = float(cfg_param(cfg, "l1", cfg_param(cfg, "L1", 1.0)))
+    l2 = float(cfg_param(cfg, "l2", cfg_param(cfg, "L2", 1.0)))
     x1, y1, x2, y2 = _positions_vectorized(l1, l2, th1, th2)
 
     fps_anim = int(ui.get("fps_anim", 60))
@@ -40,7 +40,7 @@ def make_double_pendulum_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go
     trail_on = bool(ui.get("trail_on", False))
     trail_max_points = int(ui.get("trail_max_points", 220))
 
-    dt_sim = float(np.mean(np.diff(T))) if len(T) > 1 else max(float(cfg.get("dt", 0.01)), 1e-6)
+    dt_sim = float(np.mean(np.diff(T))) if len(T) > 1 else max(float(solver_param(cfg, "dt", 0.01)), 1e-6)
     step = max(1, int(round(1.0 / (max(1, fps_anim) * dt_sim))))
     frame_idx = np.arange(0, len(T), dtype=int)[::step]
     if len(frame_idx) > max_frames:

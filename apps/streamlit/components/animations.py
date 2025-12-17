@@ -5,7 +5,7 @@ from typing import Dict
 import numpy as np
 import plotly.graph_objects as go
 
-from apps.streamlit.components.dashboards._common import duration_ms_from_frames
+from apps.streamlit.components.dashboards._common import duration_ms_from_frames, cfg_param, solver_param
 
 
 def make_cartpole_animation(cfg: Dict, T, X, system) -> go.Figure:
@@ -22,7 +22,7 @@ def make_cartpole_animation(cfg: Dict, T, X, system) -> go.Figure:
     if len(T) > 1:
         dt_sim = float(np.mean(np.diff(T)))
     else:
-        dt_sim = max(cfg.get("dt", 0.01), 1e-3)
+        dt_sim = max(solver_param(cfg, "dt", 0.01), 1e-3)
 
     fps_anim = 60
 
@@ -113,10 +113,10 @@ def make_cartpole_animation(cfg: Dict, T, X, system) -> go.Figure:
         frames=frames,
     )
 
-    span = max(float(np.max(np.abs(cart_x)) + 1.0), float(cfg.get("length", 0.5) * 1.5))
+    span = max(float(np.max(np.abs(cart_x)) + 1.0), float(cfg_param(cfg, "length", 0.5) * 1.5))
     fig.update_layout(
         xaxis=dict(range=[-span, span], scaleanchor="y"),
-        yaxis=dict(range=[-cfg.get("length", 0.5) - 0.5, cfg.get("length", 0.5) + 0.5]),
+        yaxis=dict(range=[-cfg_param(cfg, "length", 0.5) - 0.5, cfg_param(cfg, "length", 0.5) + 0.5]),
         height=420,
         margin=dict(l=10, r=10, t=30, b=10),
         showlegend=False,

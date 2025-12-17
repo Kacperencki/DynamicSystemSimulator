@@ -1,16 +1,23 @@
 site_name: Dynamic System Simulator (DSS)
+
 nav:
   - Overview: docs/overview.md
-  - Installation: docs/installation.md
-  - Streamlit GUI: docs/streamlit_gui.md
-  - Models: docs/models.md
-  - Core API: docs/core_api.md
-  - Controllers & Wrappers: docs/controllers_wrappers.md
-  - Scripts: docs/scripts.md
-  - Extending: docs/extending.md
+  - Getting started:
+      - Installation: docs/installation.md
+      - Streamlit GUI: docs/streamlit_gui.md
+      - Scripts & artifacts: docs/scripts.md
+  - Core library:
+      - Models: docs/models.md
+      - Core API: docs/core_api.md
+      - Controllers & wrappers: docs/controllers_wrappers.md
+      - Reproducibility & logging: docs/reproducibility.md
+  - Extending DSS: docs/extending.md
+  - Development: docs/development.md
   - Troubleshooting: docs/troubleshooting.md
+
 theme:
   name: readthedocs
+
 markdown_extensions:
   - admonition
   - toc:

@@ -117,3 +117,8 @@ class SimpleSwitcher:
         swing_limit = getattr(self.c_swing, "F_max", getattr(self.c_swing, "force_limit", None))
         u = self._clip(u, swing_limit)
         return u
+
+    # Uniform callable interface: u = pi(t, x)
+    def __call__(self, t, state):
+        return self.cart_force(t, state)
+

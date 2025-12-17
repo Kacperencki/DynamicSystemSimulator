@@ -12,6 +12,7 @@ from apps.streamlit.components.ui_sections import (
     simulation_time,
     solver_settings,
     animation_performance,
+    logging_settings,
 )
 from apps.streamlit.runners.dc_motor_runner import run_dc_motor
 from apps.streamlit.components.dashboards.dc_motor_dashboard import make_dc_motor_dashboard
@@ -153,6 +154,8 @@ def controls(prefix: str) -> Controls:
             trail_max_points=SliderSpec("Tail max points", 50, 600, 200, 10),
         )
 
+        save_run, log_dir, run_name = logging_settings(prefix, expanded=False)
+
     return dict(
         run_clicked=run_clicked,
         R=float(R),
@@ -179,6 +182,9 @@ def controls(prefix: str) -> Controls:
         dt=float(dt),
         **solver,
         **perf,
+        save_run=save_run,
+        log_dir=log_dir,
+        run_name=run_name,
     )
 
 
@@ -212,6 +218,9 @@ def run(controls: Controls) -> Tuple[Cfg, Out]:
         method=controls["solver_method"],
         rtol=controls["rtol"],
         atol=controls["atol"],
+        save_run=bool(controls.get('save_run', False)),
+        log_dir=str(controls.get('log_dir', 'logs')),
+        run_name=str(controls.get('run_name', '')),
     )
 
 

@@ -156,3 +156,8 @@ class AutoSwingUp:
         self._last_t = t
         self._last_u = u
         return u
+
+    # Uniform callable interface: u = pi(t, x)
+    def __call__(self, t, state):
+        return self.cart_force(t, state)
+

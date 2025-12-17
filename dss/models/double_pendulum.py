@@ -89,7 +89,9 @@ class DoublePendulum:
     # ======================================================================
     # Public API
     # ======================================================================
-    def dynamics(self, t, state, tau_drive=None):
+    def dynamics(self, t, state, inputs=None, tau_drive=None):
+        if inputs is not None and tau_drive is None:
+            tau_drive = inputs
         if self.mode == "ideal":
             return self._solve_theta_ddot(t, state,
                                           tau1=0.0, tau2=0.0,

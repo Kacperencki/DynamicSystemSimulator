@@ -6,7 +6,7 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from apps.streamlit.components.dashboards._common import downsample_idx, pad_range, duration_ms_from_frames
+from apps.streamlit.components.dashboards._common import downsample_idx, pad_range, cfg_param, solver_param, duration_ms_from_frames
 Cfg = Dict[str, Any]
 Out = Dict[str, Any]
 
@@ -21,7 +21,7 @@ def make_inverted_pendulum_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> 
     theta = X[:, 2]
     theta_dot = X[:, 3]
 
-    L = float(cfg.get("length", 0.3))
+    L = float(cfg_param(cfg, "length", 0.3))
 
     fps_anim = int(ui.get("fps_anim", 60))
     max_frames = int(ui.get("max_frames", 360))
@@ -38,7 +38,7 @@ def make_inverted_pendulum_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> 
     tip_y = pivot_y + L * np.cos(theta)
 
     # animation frame selection
-    dt_sim = float(np.mean(np.diff(T))) if len(T) > 1 else max(float(cfg.get("dt", 0.01)), 1e-6)
+    dt_sim = float(np.mean(np.diff(T))) if len(T) > 1 else max(float(solver_param(cfg, "dt", 0.01)), 1e-6)
     step = max(1, int(round(1.0 / (fps_anim * dt_sim))))
     frame_idx = np.arange(0, len(T), dtype=int)[::step]
     if len(frame_idx) > max_frames:
