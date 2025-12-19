@@ -1,0 +1,25 @@
+model,model_title,method,T,fps,rtol,atol,repeats,ok_any,runtime_s_median,nfev_median,njev_median,nlu_median
+pendulum,Pendulum,RK45,10.0,200,0.0001,1e-06,3,True,0.014243800000258489,422,0,0
+pendulum,Pendulum,DOP853,10.0,200,0.0001,1e-06,3,True,0.013396999998803949,392,0,0
+pendulum,Pendulum,Radau,10.0,200,0.0001,1e-06,3,True,0.03891769999972894,638,2,8
+pendulum,Pendulum,BDF,10.0,200,0.0001,1e-06,3,True,0.06447950000074343,505,3,32
+double_pendulum,Double pendulum,RK45,10.0,200,0.0001,1e-06,3,True,0.054386100000556326,1088,0,0
+double_pendulum,Double pendulum,DOP853,10.0,200,0.0001,1e-06,3,True,0.05641810000088299,1634,0,0
+double_pendulum,Double pendulum,Radau,10.0,200,0.0001,1e-06,3,True,0.3183872000008705,3181,35,442
+double_pendulum,Double pendulum,BDF,10.0,200,0.0001,1e-06,3,True,0.26141329999882146,1665,18,111
+inverted_pendulum,Inverted pendulum (plant),RK45,10.0,200,0.0001,1e-06,3,True,0.02993659999992815,728,0,0
+inverted_pendulum,Inverted pendulum (plant),DOP853,10.0,200,0.0001,1e-06,3,True,0.02841469999839319,794,0,0
+inverted_pendulum,Inverted pendulum (plant),Radau,10.0,200,0.0001,1e-06,3,True,0.12511599999925238,1370,3,174
+inverted_pendulum,Inverted pendulum (plant),BDF,10.0,200,0.0001,1e-06,3,True,0.0919346000009682,566,4,45
+dc_motor,DC motor,RK45,10.0,500,0.0001,1e-06,3,True,0.008330000000569271,308,0,0
+dc_motor,DC motor,DOP853,10.0,500,0.0001,1e-06,3,True,0.009211399999912828,509,0,0
+dc_motor,DC motor,Radau,10.0,500,0.0001,1e-06,3,True,0.03525929999887012,486,1,144
+dc_motor,DC motor,BDF,10.0,500,0.0001,1e-06,3,True,0.05223670000123093,234,6,36
+vanderpol,Van der Pol,RK45,10.0,200,0.0001,1e-06,3,True,0.01144890000068699,254,0,0
+vanderpol,Van der Pol,DOP853,10.0,200,0.0001,1e-06,3,True,0.012725799999316223,362,0,0
+vanderpol,Van der Pol,Radau,10.0,200,0.0001,1e-06,3,True,0.043164300001080846,545,22,90
+vanderpol,Van der Pol,BDF,10.0,200,0.0001,1e-06,3,True,0.056899899998825276,374,7,31
+lorenz,Lorenz,RK45,10.0,200,0.0001,1e-06,3,True,0.02849169999899459,992,0,0
+lorenz,Lorenz,DOP853,10.0,200,0.0001,1e-06,3,True,0.03549320000092848,1295,0,0
+lorenz,Lorenz,Radau,10.0,200,0.0001,1e-06,3,True,0.15797309999834397,2053,46,216
+lorenz,Lorenz,BDF,10.0,200,0.0001,1e-06,3,True,0.14769100000194157,1020,2,76

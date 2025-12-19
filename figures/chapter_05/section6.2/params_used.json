@@ -1,0 +1,49 @@
+{
+  "solver": {
+    "method": "RK45",
+    "rtol": 0.0001,
+    "atol": 1e-06
+  },
+  "cards": {
+    "T": 10.0,
+    "fps": 200,
+    "lorenz_T": 50.0
+  },
+  "inverted_screenshot": {
+    "l": 1.0,
+    "M": 0.5,
+    "m": 0.2,
+    "g": 9.81,
+    "coulomb_k": 1000.0,
+    "y0": [
+      0.0,
+      0.0,
+      3.14,
+      0.0
+    ],
+    "swing": {
+      "k_e": 30.0,
+      "u_max": 30.0,
+      "du_max": 800.0
+    },
+    "lqr": {
+      "Q_diag": [
+        10.0,
+        15.0,
+        120.0,
+        250.0
+      ],
+      "u_max": 30.0
+    },
+    "switch": {
+      "engage_deg": 25.0,
+      "engage_xdot": 6.0,
+      "engage_thetad": 9.0,
+      "dropout_deg": 45.0,
+      "dropout_xdot": 10.0,
+      "dropout_thetad": 30.0,
+      "allow_dropout": true,
+      "blend_time": 0.12
+    }
+  }
+}
