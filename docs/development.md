@@ -12,66 +12,36 @@ This page documents recommended development practices for DSS.
 
 ```bash
 python -m venv .venv
-.venv\Scripts\activate          # Windows
-# source .venv/bin/activate       # macOS/Linux
+# Windows:
+.venv\Scripts\activate
+# macOS/Linux:
+source .venv/bin/activate
 
+python -m pip install --upgrade pip
 python -m pip install -e ".[gui,dev]"
 ```
 
-## Linting (Ruff)
-
-Ruff is configured in `pyproject.toml`.
-
-Run:
+## Running lint and docs
 
 ```bash
 ruff check .
-```
-
-The current configuration focuses on real errors (undefined names, etc.). You can gradually expand the rule set once the codebase is stable.
-
-## Testing (pytest)
-
-Tests live in `tests/`.
-
-Run:
-
-```bash
-pytest
-```
-
-Recommended minimal test coverage:
-- each model: dynamics returns correct shape and finite values
-- solver: a short integration run produces consistent `(T, X)`
-- wrappers/controllers: closed-loop runs do not produce NaNs
-- (optional) logger: produces expected artifact files
-
-## Documentation (MkDocs)
-
-Serve docs locally:
-
-```bash
 mkdocs serve
 ```
 
-## Keeping the repository clean
-
-Do not commit generated files:
-- `__pycache__/`, `*.pyc`
-- `.venv/`
-- `artifacts/`
-- `site/` (MkDocs output)
-- `.pytest_cache/`, `.ruff_cache/`
-
-Use the cleanup scripts under `tools/` to remove common generated directories.
-
 ## Making changes safely
 
-Recommended workflow for changes that affect simulation behavior:
+When a change affects simulation behaviour, verify it in at least two ways:
 
-1. Add or update a test that describes the expected behavior.
-2. Implement the change.
-3. Run `pytest`.
-4. Run a short GUI check in Streamlit for at least one system.
+1. Run the GUI for one representative system (quick sanity check):
 
-This keeps the “thesis promises” (modularity, testability, reproducibility) aligned with the implementation.
+```bash
+streamlit run streamlit_app.py
+```
+
+2. Run an offline tool that exercises the solver and writes artifacts:
+
+```bash
+python tools/ch6_perf_baseline_uniform.py --out figures/_dev_perf_check
+```
+
+This keeps “thesis promises” (modularity, reproducibility) aligned with the implementation even when a full test suite is not present.

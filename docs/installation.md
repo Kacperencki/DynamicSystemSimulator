@@ -23,17 +23,29 @@ python -m pip install --upgrade pip
 python -m pip install -e .
 ```
 
+> Note: `pip install -e .` installs only the *core* dependencies. To run the GUI you need the `gui` extras (Streamlit + Plotly).
+
 ## Install GUI and development tools
 
 ```bash
+python -m pip install -e ".[gui]"
+# or, for docs + lint/test tools:
 python -m pip install -e ".[gui,dev]"
 ```
 
 This installs:
-- Streamlit (GUI)
-- pytest (tests)
+- Streamlit + Plotly (GUI)
+- pytest (optional tests)
 - ruff (lint)
 - mkdocs (documentation)
+
+## Alternative: requirements.txt
+
+If you prefer not to use package extras:
+
+```bash
+python -m pip install -r requirements.txt
+```
 
 ## Run the GUI
 
@@ -45,15 +57,16 @@ streamlit run streamlit_app.py
 
 If you run Streamlit from a different working directory, Python imports may fail. Always launch from the repository root unless you know exactly what you are doing.
 
-## Run scripts
+## Run offline tools / scripts
 
-Scripts are intentionally separated from the `dss/` package. Run them from the repository root:
+Run from the repository root (so imports work):
 
 ```bash
-python scripts/lorenz_attractor.py
+python tools/ch6_perf_baseline_uniform.py --out figures/chapter_05/section6.4
+python tools/ch6_generate_62_white_blacklines_with_inverted_v2.py --out figures/chapter_05/section6.2
 ```
 
-Outputs should go to `artifacts/`.
+Legacy scripts live under `scripts_leagacy/` and are not guaranteed to match the current API.
 
 ## Build documentation (MkDocs)
 
@@ -73,7 +86,7 @@ This typically happens when:
 
 Fix:
 1. Activate your venv.
-2. Run:
+2. Install in editable mode:
 
 ```bash
 python -m pip install -e .

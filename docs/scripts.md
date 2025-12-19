@@ -1,64 +1,70 @@
-# Scripts and artifacts
+# Offline tools and artifacts
 
-Offline scripts live in `scripts/`. They are used to:
-- generate plots and tables for reports,
-- benchmark solver settings,
-- validate model behavior independently of Streamlit.
+DSS supports running simulations outside the GUI to generate figures/tables for reports (e.g., thesis Chapter 6) and to benchmark solver settings.
 
-## Running scripts
+## Conventions
 
-Run scripts from the repository root (so imports work):
+- Run tools from the **repository root** so imports work.
+- Prefer writing outputs into a dedicated directory under `figures/` (committable) or a temporary `artifacts/` directory (typically not committed).
+- Keep runs reproducible: record solver settings (`method`, `rtol`, `atol`, `T`, `fps`) alongside generated outputs.
+
+## Current tools (`tools/`)
+
+### Chapter 6.2 — model “diagnostic cards”
+
+Script:
+- `tools/ch6_generate_62_white_blacklines_with_inverted_v2.py`
+
+What it does:
+- runs a standard scenario for each model,
+- saves grouped PNG “cards” suitable for including in Chapter 6.2.
+
+Example:
 
 ```bash
-python scripts/lorenz_attractor.py
+python tools/ch6_generate_62_white_blacklines_with_inverted_v2.py \
+  --out figures/chapter_05/section6.2 \
+  --method DOP853 --rtol 1e-4 --atol 1e-6 --T 10 --fps 200
 ```
 
-## Artifact conventions
+Useful options:
+- `--save-csv` additionally writes simple CSV time series (quick debugging)
+- `--lorenz-T 50` uses a longer horizon for Lorenz (default 50 s)
 
-Scripts should write outputs into `artifacts/`:
+### Chapter 6.4 — uniform baseline performance benchmark
 
-- `artifacts/data/` — CSV / NPZ / intermediate data
-- `artifacts/figs/` — PNG / PDF figures
-- `artifacts/logs/` — run bundles (config + arrays)
+Script:
+- `tools/ch6_perf_baseline_uniform.py`
 
-`artifacts/` is considered generated output and should not be committed to version control.
+What it does:
+- runs each model for the same horizon `T` and sampling rate `fps`,
+- repeats each case and reports median runtime and median `nfev`,
+- writes CSV, LaTeX table, and a summary plot into `--out`.
 
-## Recommended script structure
+Example:
 
-A script should follow a consistent shape:
-
-1. Define the model and parameters (or a config dictionary)
-2. Run the solver
-3. Post-process arrays for plotting
-4. Save numeric output and figures into `artifacts/`
-
-Skeleton:
-
-```python
-from pathlib import Path
-import numpy as np
-import matplotlib.pyplot as plt
-
-from dss.models.lorenz import Lorenz
-from dss.core.solver import Solver
-
-OUT = Path("artifacts") / "figs"
-OUT.mkdir(parents=True, exist_ok=True)
-
-sys = Lorenz()
-y0 = np.array([1.0, 1.0, 1.0])
-
-sol = Solver(sys, y0, T=10.0, fps=500, method="DOP853").run()
-T = sol.t
-X = sol.y.T
-
-plt.figure()
-plt.plot(T, X[:, 0])
-plt.savefig(OUT / "lorenz_x.png", dpi=200)
+```bash
+python tools/ch6_perf_baseline_uniform.py \
+  --out figures/chapter_05/section6.4 \
+  --method DOP853 --rtol 1e-4 --atol 1e-7 --T 10 --fps 200 --repeats 5
 ```
 
-## Keeping scripts stable
+Useful options:
+- `--no-inverted-closed` disables the closed-loop inverted pendulum case.
 
-- Avoid importing Streamlit in scripts.
-- Keep scripts deterministic where possible (seed any randomness).
-- Save enough metadata (config + solver settings) to reproduce figures.
+## Legacy scripts (`scripts_leagacy/`)
+
+The `scripts_leagacy/` folder contains an older, more extensive pipeline (scenario registry, sweep scripts, etc.). It is kept for reference and may diverge from the current API.
+
+If you use it:
+- expect to adjust imports and paths,
+- treat it as “source material” rather than a supported interface.
+
+## Suggested artifact structure
+
+When generating figures/tables for a thesis chapter, keep outputs grouped:
+
+- `figures/chapter_05/section6.2/` — qualitative behaviour panels
+- `figures/chapter_05/section6.4/` — performance tables/plots
+
+This keeps the LaTeX includes stable and makes it clear which scripts produced which files.

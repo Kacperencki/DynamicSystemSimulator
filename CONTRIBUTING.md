@@ -14,31 +14,16 @@ This repository mixes a numerical library (`dss/`) with an interactive GUI (`app
 ## Coding style
 
 - Use clear names for physical quantities (`theta`, `omega`, `cart_pos`, …).
-- Keep units consistent (SI).
-- Avoid hidden global state.
-- Return NumPy arrays with predictable shapes.
+- Prefer type hints for public interfaces.
+- Keep plotting code in the GUI layer (or in offline tooling under `tools/`).
 
-## Adding a new system
+## Validating changes
 
-Follow `docs/extending.md`. High-level checklist:
+If a change modifies model equations or solver behaviour, validate it with:
+- a short GUI run (pick one system and confirm plots look reasonable), and
+- an offline tool run (e.g., `tools/ch6_perf_baseline_uniform.py`) to catch obvious regressions.
 
-1. Add model in `dss/models/` and implement:
-   - `dynamics(t, state, inputs=None)`
-   - `state_labels()`
-2. Register it in `dss/models/__init__.py`.
-3. Add a Streamlit `SystemSpec` under `apps/streamlit/systems/`.
-4. Register the system factory in `apps/streamlit/registry.py`.
-5. Add a minimal test in `tests/` (recommended).
-
-## Tests
-
-Run:
-
-```bash
-pytest
-```
-
-If a change modifies model equations or solver behavior, add a test that captures the intended behavior (shape checks, energy drift thresholds, etc.).
+A dedicated `tests/` directory is optional; add it if you are introducing non-trivial numerical changes that should be guarded long-term.
 
 ## Documentation
 
@@ -48,6 +33,6 @@ Documentation is in `docs/` and built with MkDocs:
 mkdocs serve
 ```
 
-When changing public APIs or user-facing behavior, update:
-- README.md
+When changing public APIs or user-facing behaviour, update:
+- `README.md`
 - relevant docs pages under `docs/`

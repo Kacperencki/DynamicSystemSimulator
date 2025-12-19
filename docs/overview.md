@@ -7,8 +7,8 @@ Dynamic System Simulator (DSS) is organized as a **numerical core** plus an **in
 
 The project is designed for *educational use* and *reproducible experiments*: the same model code can be executed from:
 - the Streamlit interface,
-- offline scripts (`scripts/`),
-- unit tests (`tests/`).
+- offline tools under `tools/`,
+- legacy scripts under `scripts_leagacy/` (kept for reference).
 
 ## Concepts and data flow
 
@@ -30,7 +30,7 @@ At runtime, DSS follows a simple, repeatable flow:
 
 5. **Outputs**
    - GUI: render Plotly figures and animations.
-   - Scripts: save numeric arrays and figures to `artifacts/`.
+   - Tools/scripts: save numeric arrays and figures under a chosen output directory (e.g., `figures/...`).
    - Logger (optional): persist `config.json` + `output.npz` in a run directory.
 
 ## Naming and conventions
@@ -64,26 +64,19 @@ This distinction matters because:
 ## Where things live
 
 - `dss/models/`  
-  Model definitions (ODEs): pendulums, cart–pole, Lorenz, Van der Pol, DC motor.
+  Model definitions (ODEs): pendulums, inverted pendulum, Lorenz, Van der Pol, DC motor.
 
 - `dss/core/`  
   Solver wrapper, high-level simulation API, diagnostics, and logger utilities.
 
 - `dss/controllers/` and `dss/wrappers/`  
-  Closed-loop and composition tools (primarily used for cart–pole control).
+  Closed-loop and composition tools (used mainly for the inverted pendulum control case).
 
 - `apps/streamlit/`  
-  Streamlit system pages (`systems/`), run logic (`runners/`), and Plotly dashboards (`components/`).
+  Streamlit registry, shared UI components, and dashboards.
 
-- `scripts/`  
-  Offline runs that generate plots/tables; should write outputs to `artifacts/`.
+- `tools/`  
+  Supported offline utilities (e.g., figure/table generators for Chapter 6).
 
-## What “modular” means in DSS
-
-A change is considered “modular” if it does not require editing unrelated layers:
-
-- Adding a new model should not require modifying the solver.
-- Adding a new controller should not require modifying models.
-- Adding a new Streamlit system should not require changing other systems.
-
-The documentation under **Extending DSS** describes the recommended end-to-end workflow.
+- `scripts_leagacy/`  
+  Older scripts kept for reference; expect some drift from the current API.
