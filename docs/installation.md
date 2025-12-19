@@ -63,7 +63,7 @@ Run from the repository root (so imports work):
 
 ```bash
 python tools/ch6_perf_baseline_uniform.py --out figures/chapter_05/section6.4
-python tools/ch6_generate_62_white_blacklines_with_inverted_v2.py --out figures/chapter_05/section6.2
+python tools/ch6_generate_62.py --out figures/chapter_05/section6.2
 ```
 
 Legacy scripts live under `scripts_leagacy/` and are not guaranteed to match the current API.

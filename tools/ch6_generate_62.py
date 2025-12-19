@@ -198,22 +198,22 @@ def gen_dc_motor(out: Path, save_csv: bool, T: float, fps: int, method: str, rto
     fig, axs = plt.subplots(2, 2, figsize=(10.5, 6.2))
     axs = axs.ravel()
 
-    axs[0].plot(t, V, linewidth=1.2)
+    axs[0].plot(t, V, linewidth=1.2, color="black")
     axs[0].set_title(r"Input voltage $V(t)$")
     axs[0].set_xlabel("t [s]"); axs[0].set_ylabel("V [V]")
     _setup_ax(axs[0])
 
-    axs[1].plot(t, i, linewidth=1.2)
+    axs[1].plot(t, i, linewidth=1.2, color="black")
     axs[1].set_title(r"Armature current $i(t)$")
     axs[1].set_xlabel("t [s]"); axs[1].set_ylabel("i [A]")
     _setup_ax(axs[1])
 
-    axs[2].plot(t, w, linewidth=1.2)
+    axs[2].plot(t, w, linewidth=1.2, color="black")
     axs[2].set_title(r"Angular speed $\omega(t)$")
     axs[2].set_xlabel("t [s]"); axs[2].set_ylabel(r"$\omega$ [rad/s]")
     _setup_ax(axs[2])
 
-    axs[3].plot(t, theta, linewidth=1.2)
+    axs[3].plot(t, theta, linewidth=1.2, color="black")
     axs[3].set_title(r"Angle $\theta(t)$")
     axs[3].set_xlabel("t [s]"); axs[3].set_ylabel(r"$\theta$ [rad]")
     _setup_ax(axs[3])

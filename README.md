@@ -75,7 +75,7 @@ Run from the repository root.
 ### Chapter 6.2: model “diagnostic cards” (group figures)
 
 ```bash
-python tools/ch6_generate_62_white_blacklines_with_inverted_v2.py \
+python tools/ch6_generate_62.py \
   --out figures/chapter_05/section6.2 \
   --method DOP853 --rtol 1e-4 --atol 1e-6 --T 10 --fps 200
 ```
