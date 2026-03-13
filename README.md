@@ -50,37 +50,31 @@ tests/                Unit tests
 - Python **3.10+**
 - Recommended: create and use a virtual environment
 
-Dependencies are declared in `pyproject.toml`. A minimal `requirements.txt` is also provided.
-
 ## Installation
 
-### Option A (recommended): editable install + GUI extras
+**1.** Create and activate a virtual environment:
 
 ```bash
 python -m venv .venv
+
 # Windows:
 .venv\Scripts\activate
+
 # macOS/Linux:
 source .venv/bin/activate
+```
 
+**2.** Install all dependencies:
+
+```bash
 python -m pip install --upgrade pip
-python -m pip install -e ".[gui]"
-```
-
-If you also want docs + lint/test tools:
-
-```bash
-python -m pip install -e ".[gui,dev]"
-```
-
-### Option B: requirements.txt
-
-```bash
-python -m venv .venv
-.venv\Scripts\activate          # Windows
-source .venv/bin/activate       # macOS/Linux
-
 python -m pip install -r requirements.txt
+```
+
+**3.** Verify the installation:
+
+```bash
+python -c "import dss; print('DSS ready')"
 ```
 
 ## Run the Streamlit GUI
