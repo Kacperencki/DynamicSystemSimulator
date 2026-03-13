@@ -52,14 +52,6 @@ python tools/ch6_perf_baseline_uniform.py \
 Useful options:
 - `--no-inverted-closed` disables the closed-loop inverted pendulum case.
 
-## Legacy scripts (`scripts_leagacy/`)
-
-The `scripts_leagacy/` folder contains an older, more extensive pipeline (scenario registry, sweep scripts, etc.). It is kept for reference and may diverge from the current API.
-
-If you use it:
-- expect to adjust imports and paths,
-- treat it as “source material” rather than a supported interface.
-
 ## Suggested artifact structure
 
 When generating figures/tables for a thesis chapter, keep outputs grouped:
