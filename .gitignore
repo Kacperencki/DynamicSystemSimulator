@@ -36,3 +36,6 @@ Thumbs.db
 artifacts/
 logs/
 .streamlit/
+
+# Claude Code session data
+.claude/
