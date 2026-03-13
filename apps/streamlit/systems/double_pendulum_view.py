@@ -92,21 +92,22 @@ def controls(prefix: str) -> Controls:
         ["ideal", "damped", "driven"],
         index=0,
         key=f"{prefix}_mode",
+        help="ideal: no friction/drive; damped: viscous + Coulomb friction at both joints; driven: external sinusoidal torques.",
     )
 
     with st.form(key=f"{prefix}_form"):
-        run_clicked = run_clear_row_form(prefix, RESET_KEYS, clear_label="Clear")
+        run_clicked = run_clear_row_form(prefix, RESET_KEYS, clear_label="Clear", default_preset=PRESETS.get("Default", PRESETS.get("Default", {})), default_preset_name="Default")
 
         with st.expander("Physical parameters", expanded=False):
             r1, r2, r3 = st.columns(3)
             with r1:
-                l1 = st.number_input("l₁ [m]", value=1.0, min_value=0.0, key=f"{prefix}_l1")
-                m1 = st.number_input("m₁ [kg]", value=1.0, min_value=0.0, key=f"{prefix}_m1")
+                l1 = st.number_input("l₁ [m]", value=1.0, min_value=0.0, key=f"{prefix}_l1", help="Length of link 1 (upper arm).")
+                m1 = st.number_input("m₁ [kg]", value=1.0, min_value=0.0, key=f"{prefix}_m1", help="Mass of bob 1.")
             with r2:
-                l2 = st.number_input("l₂ [m]", value=1.0, min_value=0.0, key=f"{prefix}_l2")
-                m2 = st.number_input("m₂ [kg]", value=1.0, min_value=0.0, key=f"{prefix}_m2")
+                l2 = st.number_input("l₂ [m]", value=1.0, min_value=0.0, key=f"{prefix}_l2", help="Length of link 2 (lower arm).")
+                m2 = st.number_input("m₂ [kg]", value=1.0, min_value=0.0, key=f"{prefix}_m2", help="Mass of bob 2.")
             with r3:
-                g = st.number_input("g [m/s²]", value=9.81, key=f"{prefix}_g")
+                g = st.number_input("g [m/s²]", value=9.81, key=f"{prefix}_g", help="Gravitational acceleration.")
 
         b1 = float(st.session_state.get(f"{prefix}_b1", 0.02))
         b2 = float(st.session_state.get(f"{prefix}_b2", 0.02))
@@ -123,24 +124,24 @@ def controls(prefix: str) -> Controls:
             with st.expander("Damping / friction", expanded=False):
                 c1, c2 = st.columns(2)
                 with c1:
-                    b1 = st.number_input("b₁ [N·m·s]", value=0.02, min_value=0.0, key=f"{prefix}_b1")
-                    fc1 = st.number_input("F_c1 [N·m]", value=0.0, min_value=0.0, key=f"{prefix}_fc1")
+                    b1 = st.number_input("b₁ [N·m·s]", value=0.02, min_value=0.0, key=f"{prefix}_b1", help="Viscous damping at joint 1.")
+                    fc1 = st.number_input("Fc₁ [N·m]", value=0.0, min_value=0.0, key=f"{prefix}_fc1", help="Coulomb friction torque at joint 1.")
                 with c2:
-                    b2 = st.number_input("b₂ [N·m·s]", value=0.02, min_value=0.0, key=f"{prefix}_b2")
-                    fc2 = st.number_input("F_c2 [N·m]", value=0.0, min_value=0.0, key=f"{prefix}_fc2")
+                    b2 = st.number_input("b₂ [N·m·s]", value=0.02, min_value=0.0, key=f"{prefix}_b2", help="Viscous damping at joint 2.")
+                    fc2 = st.number_input("Fc₂ [N·m]", value=0.0, min_value=0.0, key=f"{prefix}_fc2", help="Coulomb friction torque at joint 2.")
 
         if mode == "driven":
             with st.expander("Drive parameters", expanded=False):
                 p1, p2, p3 = st.columns(3)
                 with p1:
-                    A1 = st.number_input("A₁ [N·m]", value=0.0, min_value=0.0, key=f"{prefix}_A1")
-                    A2 = st.number_input("A₂ [N·m]", value=0.0, min_value=0.0, key=f"{prefix}_A2")
+                    A1 = st.number_input("A₁ [N·m]", value=0.0, min_value=0.0, key=f"{prefix}_A1", help="Drive torque amplitude for link 1.")
+                    A2 = st.number_input("A₂ [N·m]", value=0.0, min_value=0.0, key=f"{prefix}_A2", help="Drive torque amplitude for link 2.")
                 with p2:
-                    w1 = st.number_input("ω₁ [rad/s]", value=0.0, min_value=0.0, key=f"{prefix}_w1")
-                    w2 = st.number_input("ω₂ [rad/s]", value=0.0, min_value=0.0, key=f"{prefix}_w2")
+                    w1 = st.number_input("ω₁ [rad/s]", value=0.0, min_value=0.0, key=f"{prefix}_w1", help="Drive angular frequency for link 1.")
+                    w2 = st.number_input("ω₂ [rad/s]", value=0.0, min_value=0.0, key=f"{prefix}_w2", help="Drive angular frequency for link 2.")
                 with p3:
-                    phi1 = st.number_input("φ₁ [rad]", value=0.0, key=f"{prefix}_phi1")
-                    phi2 = st.number_input("φ₂ [rad]", value=0.0, key=f"{prefix}_phi2")
+                    phi1 = st.number_input("φ₁ [rad]", value=0.0, key=f"{prefix}_phi1", help="Drive phase offset for link 1.")
+                    phi2 = st.number_input("φ₂ [rad]", value=0.0, key=f"{prefix}_phi2", help="Drive phase offset for link 2.")
         else:
             A1 = A2 = w1 = w2 = phi1 = phi2 = 0.0
 
@@ -150,11 +151,43 @@ def controls(prefix: str) -> Controls:
         with st.expander("Initial state", expanded=False):
             c1, c2 = st.columns(2)
             with c1:
-                th1_0 = st.number_input("θ₁₀ [rad]", value=float(np.pi / 2), min_value=-float(np.pi), max_value=float(np.pi), step=0.01, key=f"{prefix}_th1_0")
-                w1_0 = st.number_input("ω₁₀ [rad/s]", value=0.0, min_value=-10.0, max_value=10.0, step=0.1, key=f"{prefix}_w1_0")
+                th1_0 = st.number_input(
+                    "θ₁₀ [rad]",
+                    value=float(np.pi / 2),
+                    min_value=-float(np.pi),
+                    max_value=float(np.pi),
+                    step=0.01,
+                    key=f"{prefix}_th1_0",
+                    help="Initial absolute angle (θ=0 is hanging down).",
+                )
+                w1_0 = st.number_input(
+                    "ω₁₀ [rad/s]",
+                    value=0.0,
+                    min_value=-10.0,
+                    max_value=10.0,
+                    step=0.1,
+                    key=f"{prefix}_w1_0",
+                    help="Initial angular velocity of link 1.",
+                )
             with c2:
-                th2_0 = st.number_input("θ₂₀ [rad]", value=float(np.pi / 2), min_value=-float(np.pi), max_value=float(np.pi), step=0.01, key=f"{prefix}_th2_0")
-                w2_0 = st.number_input("ω₂₀ [rad/s]", value=0.0, min_value=-10.0, max_value=10.0, step=0.1, key=f"{prefix}_w2_0")
+                th2_0 = st.number_input(
+                    "θ₂₀ [rad]",
+                    value=float(np.pi / 2),
+                    min_value=-float(np.pi),
+                    max_value=float(np.pi),
+                    step=0.01,
+                    key=f"{prefix}_th2_0",
+                    help="Initial absolute angle (θ=0 is hanging down).",
+                )
+                w2_0 = st.number_input(
+                    "ω₂₀ [rad/s]",
+                    value=0.0,
+                    min_value=-10.0,
+                    max_value=10.0,
+                    step=0.1,
+                    key=f"{prefix}_w2_0",
+                    help="Initial angular velocity of link 2.",
+                )
 
         t0, t1, dt = simulation_time(prefix, expanded=False, t0_default=0.0, t1_default=12.0, dt_default=0.01, dt_min=1e-5, dt_step=0.001, dt_format="%.6f")
 

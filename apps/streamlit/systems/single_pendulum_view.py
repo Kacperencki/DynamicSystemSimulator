@@ -38,56 +38,56 @@ RESET_KEYS = [
 ]
 
 PRESETS: Dict[str, Dict[str, Any]] = {
-    "Default": dict(
+    "Free swing": dict(
         mode="ideal",
         L=1.0, m=1.0, g=9.81,
         b=0.0, fc=0.0,
         A=0.0, w=0.0, phi=0.0,
-        theta0=float(np.pi / 3), omega0=0.0,
+        theta0=float(np.deg2rad(60.0)), omega0=0.0,
         t0=0.0, t1=10.0, dt=0.01,
         solver_method="RK45", rtol=1e-4, atol=1e-6,
         fps_anim=30, max_frames=360, max_plot_pts=2000,
         trail_on=False, trail_max_points=180,
     ),
-    "Damped": dict(
+    "Damped decay": dict(
         mode="damped",
         L=1.0, m=1.0, g=9.81,
-        b=0.06, fc=0.01,
+        b=0.15, fc=0.0,
         A=0.0, w=0.0, phi=0.0,
-        theta0=float(np.pi / 2), omega0=0.0,
-        t0=0.0, t1=12.0, dt=0.01,
+        theta0=float(np.deg2rad(90.0)), omega0=0.0,
+        t0=0.0, t1=15.0, dt=0.01,
         solver_method="Radau", rtol=1e-5, atol=1e-7,
-        fps_anim=30, max_frames=360, max_plot_pts=2200,
+        fps_anim=30, max_frames=400, max_plot_pts=2500,
         trail_on=False, trail_max_points=180,
     ),
-    "Driven": dict(
+    "Resonant drive": dict(
         mode="driven",
         L=1.0, m=1.0, g=9.81,
-        b=0.02, fc=0.0,
-        A=0.25, w=2.0, phi=0.0,
-        theta0=0.15, omega0=0.0,
-        t0=0.0, t1=20.0, dt=0.01,
+        b=0.05, fc=0.0,
+        A=0.5, w=3.13, phi=0.0,
+        theta0=0.1, omega0=0.0,
+        t0=0.0, t1=25.0, dt=0.01,
         solver_method="RK45", rtol=1e-4, atol=1e-6,
-        fps_anim=30, max_frames=520, max_plot_pts=3200,
-        trail_on=True, trail_max_points=240,
+        fps_anim=30, max_frames=560, max_plot_pts=3500,
+        trail_on=True, trail_max_points=260,
     ),
-    "DC-driven": dict(
-        mode="dc_driven",
+    "Chaotic drive": dict(
+        mode="driven",
         L=1.0, m=1.0, g=9.81,
-        b=0.02, fc=0.0,
-        A=0.12, w=0.0, phi=0.0,
-        theta0=0.3, omega0=0.0,
-        t0=0.0, t1=15.0, dt=0.01,
-        solver_method="RK45", rtol=1e-4, atol=1e-6,
-        fps_anim=30, max_frames=420, max_plot_pts=2600,
-        trail_on=False, trail_max_points=180,
+        b=0.05, fc=0.0,
+        A=1.15, w=2.0, phi=0.0,
+        theta0=0.2, omega0=0.0,
+        t0=0.0, t1=40.0, dt=0.005,
+        solver_method="DOP853", rtol=1e-6, atol=1e-8,
+        fps_anim=30, max_frames=700, max_plot_pts=6000,
+        trail_on=True, trail_max_points=300,
     ),
 }
 
 
 def controls(prefix: str) -> Controls:
     # preset selector (reruns on change; applies to session_state)
-    presets_selector(prefix, PRESETS, label="Preset", default_name="Default")
+    presets_selector(prefix, PRESETS, label="Preset", default_name="Free swing")
 
     # dynamic selector (outside the form so it can re-render dependent inputs)
     mode = st.selectbox(
@@ -95,19 +95,20 @@ def controls(prefix: str) -> Controls:
         ["ideal", "damped", "driven", "dc_driven"],
         index=0,
         key=f"{prefix}_mode",
+        help="ideal: no friction/drive; damped: viscous + Coulomb friction; driven: external sinusoidal torque; dc_driven: constant torque.",
     )
 
     with st.form(key=f"{prefix}_form"):
-        run_clicked = run_clear_row_form(prefix, RESET_KEYS, clear_label="Clear")
+        run_clicked = run_clear_row_form(prefix, RESET_KEYS, clear_label="Reset", default_preset=PRESETS.get("Free swing", {}), default_preset_name="Free swing")
 
         with st.expander("Physical parameters", expanded=False):
             r1, r2, r3 = st.columns(3)
             with r1:
-                L = st.number_input("L [m]", value=1.0, min_value=0.0, key=f"{prefix}_L")
+                L = st.number_input("L [m]", value=1.0, min_value=0.0, key=f"{prefix}_L", help="Pendulum length from pivot to bob.")
             with r2:
-                m = st.number_input("m [kg]", value=1.0, min_value=0.0, key=f"{prefix}_m")
+                m = st.number_input("m [kg]", value=1.0, min_value=0.0, key=f"{prefix}_m", help="Bob mass.")
             with r3:
-                g = st.number_input("g [m/s²]", value=9.81, key=f"{prefix}_g")
+                g = st.number_input("g [m/s²]", value=9.81, key=f"{prefix}_g", help="Gravitational acceleration.")
 
         # defaults for conditional sections (keep their values between modes)
         b = float(st.session_state.get(f"{prefix}_b", 0.02))
@@ -120,9 +121,9 @@ def controls(prefix: str) -> Controls:
             with st.expander("Damped mode parameters", expanded=False):
                 d1, d2 = st.columns(2)
                 with d1:
-                    b = st.number_input("b [N·m·s]", value=0.02, min_value=0.0, key=f"{prefix}_b")
+                    b = st.number_input("b [N·m·s]", value=0.02, min_value=0.0, key=f"{prefix}_b", help="Viscous damping coefficient.")
                 with d2:
-                    fc = st.number_input("Coulomb F_c [N·m]", value=0.0, min_value=0.0, key=f"{prefix}_fc")
+                    fc = st.number_input("Fc [N·m]", value=0.0, min_value=0.0, key=f"{prefix}_fc", help="Coulomb (dry) friction torque.")
             A, w, phi = 0.0, 0.0, 0.0
 
         elif mode in ("driven", "dc_driven"):
@@ -130,17 +131,17 @@ def controls(prefix: str) -> Controls:
             with st.expander(title, expanded=False):
                 d1, d2 = st.columns(2)
                 with d1:
-                    b = st.number_input("b [N·m·s]", value=0.02, min_value=0.0, key=f"{prefix}_b")
+                    b = st.number_input("b [N·m·s]", value=0.02, min_value=0.0, key=f"{prefix}_b", help="Viscous damping coefficient.")
                 with d2:
-                    fc = st.number_input("Coulomb F_c [N·m]", value=0.0, min_value=0.0, key=f"{prefix}_fc")
+                    fc = st.number_input("Fc [N·m]", value=0.0, min_value=0.0, key=f"{prefix}_fc", help="Coulomb (dry) friction torque.")
 
                 p1, p2, p3 = st.columns(3)
                 with p1:
-                    A = st.number_input("A [N·m]", value=0.2, min_value=0.0, key=f"{prefix}_A")
+                    A = st.number_input("A [N·m]", value=0.2, min_value=0.0, key=f"{prefix}_A", help="Amplitude of the driving torque.")
                 with p2:
-                    w = st.number_input("ω [rad/s]", value=2.0, min_value=0.0, key=f"{prefix}_w")
+                    w = st.number_input("ω [rad/s]", value=2.0, min_value=0.0, key=f"{prefix}_w", help="Angular frequency of the driving torque.")
                 with p3:
-                    phi = st.number_input("φ [rad]", value=0.0, key=f"{prefix}_phi")
+                    phi = st.number_input("φ [rad]", value=0.0, key=f"{prefix}_phi", help="Phase offset of the driving torque.")
 
             if mode == "dc_driven":
                 w, phi = 0.0, 0.0
@@ -158,6 +159,7 @@ def controls(prefix: str) -> Controls:
                     max_value=float(np.pi),
                     step=0.01,
                     key=f"{prefix}_theta0",
+                    help="Initial angle from downward vertical (θ=0 is hanging down).",
                 )
             with c2:
                 w0 = st.number_input(
@@ -167,6 +169,7 @@ def controls(prefix: str) -> Controls:
                     max_value=10.0,
                     step=0.1,
                     key=f"{prefix}_omega0",
+                    help="Initial angular velocity.",
                 )
 
         t0, t1, dt = simulation_time(

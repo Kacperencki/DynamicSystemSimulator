@@ -32,48 +32,56 @@ RESET_KEYS = [
 ]
 
 PRESETS: Dict[str, Dict[str, Any]] = {
-    "Default": dict(
+    "Classic attractor": dict(
         sigma=10.0, rho=28.0, beta=8.0 / 3.0,
-        x0=1.0, y0=1.0, z0=1.0,
-        t0=0.0, t1=40.0, dt=0.01,
-        solver_method="RK45", rtol=1e-4, atol=1e-6,
-        fps_anim=30, max_frames=700, max_plot_pts=6000,
-        trail_on=True, trail_max_points=280,
+        x0=1.0, y0=0.0, z0=0.0,
+        t0=0.0, t1=40.0, dt=0.005,
+        solver_method="DOP853", rtol=1e-6, atol=1e-8,
+        fps_anim=30, max_frames=700, max_plot_pts=8000,
+        trail_on=True, trail_max_points=320,
     ),
-    "Less chaotic": dict(
-        sigma=10.0, rho=20.0, beta=8.0 / 3.0,
-        x0=1.0, y0=1.0, z0=1.0,
-        t0=0.0, t1=40.0, dt=0.01,
-        solver_method="RK45", rtol=1e-4, atol=1e-6,
-        fps_anim=30, max_frames=700, max_plot_pts=6000,
+    "Sensitive to IC": dict(
+        sigma=10.0, rho=28.0, beta=8.0 / 3.0,
+        x0=1.001, y0=0.0, z0=0.0,
+        t0=0.0, t1=40.0, dt=0.005,
+        solver_method="DOP853", rtol=1e-6, atol=1e-8,
+        fps_anim=30, max_frames=700, max_plot_pts=8000,
+        trail_on=True, trail_max_points=320,
+    ),
+    "Near-periodic (rho=99.96)": dict(
+        sigma=10.0, rho=99.96, beta=8.0 / 3.0,
+        x0=0.1, y0=0.0, z0=0.0,
+        t0=0.0, t1=20.0, dt=0.005,
+        solver_method="DOP853", rtol=1e-6, atol=1e-8,
+        fps_anim=30, max_frames=500, max_plot_pts=5000,
         trail_on=True, trail_max_points=280,
     ),
 }
 
 
 def controls(prefix: str) -> Controls:
-    presets_selector(prefix, PRESETS, label="Preset", default_name="Default")
+    presets_selector(prefix, PRESETS, label="Preset", default_name="Classic attractor")
 
     with st.form(key=f"{prefix}_form"):
-        run_clicked = run_clear_row_form(prefix, RESET_KEYS, clear_label="Clear")
+        run_clicked = run_clear_row_form(prefix, RESET_KEYS, clear_label="Reset", default_preset=PRESETS.get("Classic attractor", {}), default_preset_name="Classic attractor")
 
         with st.expander("System parameters", expanded=False):
             c1, c2, c3 = st.columns(3)
             with c1:
-                sigma = st.number_input("σ", value=10.0, key=f"{prefix}_sigma")
+                sigma = st.number_input("σ", value=10.0, key=f"{prefix}_sigma", help="Prandtl number — ratio of momentum to thermal diffusivity. Controls the rate of velocity mixing.")
             with c2:
-                rho = st.number_input("ρ", value=28.0, key=f"{prefix}_rho")
+                rho = st.number_input("ρ", value=28.0, key=f"{prefix}_rho", help="Normalised Rayleigh number — controls the temperature difference driving convection. Chaos onset above ≈ 24.74.")
             with c3:
-                beta = st.number_input("β", value=8.0 / 3.0, key=f"{prefix}_beta")
+                beta = st.number_input("β", value=8.0 / 3.0, key=f"{prefix}_beta", help="Geometric factor related to the spatial frequency of convective rolls. Classic value: 8/3.")
 
         with st.expander("Initial state", expanded=False):
             c1, c2, c3 = st.columns(3)
             with c1:
-                x0 = st.number_input("x(0)", value=1.0, key=f"{prefix}_x0")
+                x0 = st.number_input("x(0)", value=1.0, key=f"{prefix}_x0", help="Initial x state.")
             with c2:
-                y0 = st.number_input("y(0)", value=1.0, key=f"{prefix}_y0")
+                y0 = st.number_input("y(0)", value=1.0, key=f"{prefix}_y0", help="Initial y state.")
             with c3:
-                z0 = st.number_input("z(0)", value=1.0, key=f"{prefix}_z0")
+                z0 = st.number_input("z(0)", value=1.0, key=f"{prefix}_z0", help="Initial z state.")
 
         t0, t1, dt = simulation_time(prefix, expanded=False, t0_default=0.0, t1_default=40.0, dt_default=0.01, dt_min=1e-5, dt_step=0.001, dt_format="%.6f")
 

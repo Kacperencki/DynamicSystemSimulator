@@ -55,23 +55,26 @@ def controls(prefix: str) -> Controls:
     presets_selector(prefix, PRESETS, label="Preset", default_name="Default")
 
     with st.form(key=f"{prefix}_form"):
-        run_clicked = run_clear_row_form(prefix, RESET_KEYS, clear_label="Clear")
+        run_clicked = run_clear_row_form(prefix, RESET_KEYS, clear_label="Reset", default_preset=PRESETS.get("Default", {}), default_preset_name="Default")
 
         with st.expander("System parameters", expanded=False):
             c1, c2, c3 = st.columns(3)
             with c1:
-                L = st.number_input("L", value=1.0, min_value=1e-9, format="%.6g", key=f"{prefix}_L")
+                L = st.number_input("L [H]", value=1.0, min_value=1e-9, format="%.6g", key=f"{prefix}_L",
+                                    help="Inductance [H]. Scales the inductor time constant.")
             with c2:
-                C = st.number_input("C", value=1.0, min_value=1e-9, format="%.6g", key=f"{prefix}_C")
+                C = st.number_input("C [F]", value=1.0, min_value=1e-9, format="%.6g", key=f"{prefix}_C",
+                                    help="Capacitance [F]. Scales the oscillation frequency.")
             with c3:
-                mu = st.number_input("μ", value=2.0, min_value=0.0, format="%.6g", key=f"{prefix}_mu")
+                mu = st.number_input("μ", value=2.0, min_value=0.0, format="%.6g", key=f"{prefix}_mu",
+                                     help="Nonlinear damping strength. μ=0: harmonic oscillator; μ>>1: relaxation oscillation.")
 
         with st.expander("Initial state", expanded=False):
             c1, c2 = st.columns(2)
             with c1:
-                v0 = st.number_input("v(0)", value=1.0, format="%.6g", key=f"{prefix}_v0")
+                v0 = st.number_input("v(0)", value=1.0, format="%.6g", key=f"{prefix}_v0", help="Initial capacitor voltage (v).")
             with c2:
-                iL0 = st.number_input("i_L(0)", value=0.0, format="%.6g", key=f"{prefix}_iL0")
+                iL0 = st.number_input("i_L(0)", value=0.0, format="%.6g", key=f"{prefix}_iL0", help="Initial inductor current (i_L).")
 
         t0, t1, dt = simulation_time(prefix, expanded=False, t0_default=0.0, t1_default=30.0, dt_default=0.01, dt_min=1e-5, dt_step=0.001, dt_format="%.6f")
 
