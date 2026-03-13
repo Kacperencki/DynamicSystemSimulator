@@ -1,2 +1,0 @@
-delta_theta1_init,runtime_A,runtime_B,n_points,rtol,atol,max_energy_error
-0.001,0.10643139999956475,0.10904300000038347,8001,1e-06,1e-08,1.0975152169301339e-05
