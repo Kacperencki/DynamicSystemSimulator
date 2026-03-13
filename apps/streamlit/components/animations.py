@@ -24,13 +24,15 @@ def make_cartpole_animation(cfg: Dict, T, X, system) -> go.Figure:
     else:
         dt_sim = max(solver_param(cfg, "dt", 0.01), 1e-3)
 
-    fps_anim = 60
+    fps_anim = 60  # target animation frame rate [frames/s]
 
-    # basic step from dt
+    # Compute stride so that one animation frame corresponds to ~1/fps_anim seconds
+    # of simulation time.  step=1 means every solver output point is used.
     step = max(1, int(round(1.0 / (fps_anim * dt_sim))))
     idx = np.arange(0, len(T), step, dtype=int)
 
-    # hard cap on number of frames (e.g. 400)
+    # Hard cap: browsers struggle to render more than ~400 Plotly frames smoothly.
+    # If the stride-based selection still exceeds this, thin it out uniformly.
     MAX_FRAMES = 400
     if len(idx) > MAX_FRAMES:
         factor = int(np.ceil(len(idx) / MAX_FRAMES))
@@ -41,8 +43,10 @@ def make_cartpole_animation(cfg: Dict, T, X, system) -> go.Figure:
 
     duration_ms = duration_ms_from_frames(T, idx, fps_fallback=fps_anim)
 
-    cart_w = 0.3
-    cart_h = 0.15
+    # Cart dimensions in the same units as positions() output (metres).
+    # These are visual constants chosen to look proportional for typical pendulum lengths.
+    cart_w = 0.3   # cart width  [m]
+    cart_h = 0.15  # cart height [m]
 
     frames = []
     for i in idx:

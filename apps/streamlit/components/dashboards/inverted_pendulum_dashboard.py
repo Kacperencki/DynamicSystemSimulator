@@ -14,6 +14,40 @@ Out = Dict[str, Any]
 
 
 def make_inverted_pendulum_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go.Figure:
+    """
+    Build a Plotly figure with a synchronised animation and three time-series plots
+    for the inverted pendulum (cart-pole) system.
+
+    Layout: 3-row × 2-column grid.
+      Left column (spans all rows): cart-pole animation (cart rectangle + pole line + tip marker).
+      Right column row 1: θ(t)  — pole angle vs time.
+      Right column row 2: x(t)  — cart position vs time.
+      Right column row 3: phase — θ̇ vs θ.
+
+    Parameters
+    ----------
+    cfg : dict
+        Simulation config produced by the runner.  Relevant keys accessed via
+        cfg_param()/solver_param() helpers:
+          - cfg["model"]["params"]["length"]  pole length [m]  (default 0.3)
+          - cfg["solver"]["dt"]               output time step [s]
+    out : dict
+        Simulation output.  Required keys:
+          - "T"  : 1-D array of time points [s]
+          - "X"  : 2-D array of states, shape (N, 4), columns [x, ẋ, θ, θ̇]
+    ui : dict
+        Display settings forwarded from the Streamlit controls.  Keys:
+          - "fps_anim"         target animation frame rate (default 60)
+          - "max_frames"       hard cap on Plotly animation frames (default 360)
+          - "max_plot_pts"     maximum points rendered in the time-series plots (default 2000)
+          - "trail_on"         bool — show tip trail in animation (default False)
+          - "trail_max_points" length of the tip trail in solver steps (default 180)
+
+    Returns
+    -------
+    go.Figure
+        Plotly figure with animation frames attached, ready for st.plotly_chart().
+    """
     T = np.asarray(out["T"], dtype=float)
     X = np.asarray(out["X"], dtype=float)
 
@@ -29,10 +63,12 @@ def make_inverted_pendulum_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> 
     trail_on = bool(ui.get("trail_on", False))
     trail_max_points = int(ui.get("trail_max_points", 180))
 
-    # geometry
-    W = max(0.6, 2.0 * L)         # cart width
-    H = 0.35 * W                  # cart height
-    pivot_y = H
+    # Cart geometry in metres (same coordinate system as the simulation).
+    # W is at least 0.6 m and scales with pole length so the cart looks proportional.
+    # H is 35 % of W; pivot_y places the pole hinge at the top face of the cart.
+    W = max(0.6, 2.0 * L)         # cart width  [m]
+    H = 0.35 * W                  # cart height [m]
+    pivot_y = H                   # y-coordinate of the pole pivot (= cart top face)
 
     tip_x = x + L * np.sin(theta)
     tip_y = pivot_y + L * np.cos(theta)
