@@ -2,6 +2,18 @@
 
 Dynamic System Simulator (DSS) is a Python project for simulating classic dynamical systems (mechanical, electrical, and electromechanical) with an interactive **Streamlit + Plotly** GUI and a small, reusable numerical core.
 
+## Academic context
+
+This project was developed as a **Bachelor's thesis** at the
+[Wrocław University of Science and Technology](https://pwr.edu.pl),
+Faculty of Electronics, Photonics and Microsystems, field of Electronics and Computer Engineering.
+
+> **Thesis title:** Dynamic System Simulator
+> **Author:** Kacper Różycki
+> **Supervisor:** Dr inż. Robert Muszyński, Katedra Cybernetyki i Robotyki
+
+The full thesis document is available in this repository: [`main.pdf`](main.pdf)
+
 ## Key features
 
 - Six built-in systems: single/double pendulum, inverted pendulum (open/closed-loop with LQR, swing-up, and automatic handoff), Lorenz attractor, Van der Pol oscillator (circuit form), DC motor
