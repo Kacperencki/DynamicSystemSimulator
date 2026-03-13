@@ -38,7 +38,7 @@ def make_time_series(cfg: Dict, T: np.ndarray, X: np.ndarray, cursor_idx: Option
         if cursor_idx is not None:
             fig.add_vline(x=float(T[cursor_idx]), line_width=1, line_dash="dash")
 
-    fig.update_layout(height=280, margin=dict(l=10, r=10, t=25, b=10))
+    fig.update_layout(xaxis_title="t [s]", yaxis_title="Energy [J]", height=280, margin=dict(l=10, r=10, t=25, b=10))
     return fig
 
 
@@ -48,7 +48,7 @@ def make_phase_space(cfg: Dict, X: np.ndarray, cursor_idx: Optional[int] = None)
 
     if cfg.get("sys") == "single":
         fig.add_trace(go.Scatter(x=X[:, 0], y=X[:, 1], mode="lines", name="(θ, ω)"))
-        fig.update_layout(xaxis_title="θ", yaxis_title="ω")
+        fig.update_layout(xaxis_title="θ [rad]", yaxis_title="ω [rad/s]")
 
         if cursor_idx is not None:
             fig.add_trace(
@@ -67,6 +67,7 @@ def make_phase_space(cfg: Dict, X: np.ndarray, cursor_idx: Optional[int] = None)
             fig.add_trace(go.Scatter(x=[float(X[cursor_idx, 0])], y=[float(X[cursor_idx, 1])], mode="markers", showlegend=False))
             fig.add_trace(go.Scatter(x=[float(X[cursor_idx, 2])], y=[float(X[cursor_idx, 3])], mode="markers", showlegend=False))
 
+
     fig.update_layout(height=280, margin=dict(l=10, r=10, t=25, b=10))
     return fig
 
@@ -84,5 +85,6 @@ def make_energy(T: np.ndarray, KE: np.ndarray, PE: np.ndarray, E: np.ndarray, cu
         fig.add_vline(x=t, line_width=1, line_dash="dash")
         fig.add_trace(go.Scatter(x=[t], y=[float(E[cursor_idx])], mode="markers", showlegend=False))
 
-    fig.update_layout(height=280, margin=dict(l=10, r=10, t=25, b=10))
+
+    fig.update_layout(xaxis_title="t [s]", yaxis_title="Energy [J]", height=280, margin=dict(l=10, r=10, t=25, b=10))
     return fig

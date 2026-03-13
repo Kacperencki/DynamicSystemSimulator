@@ -6,24 +6,11 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from apps.streamlit.components.dashboards._common import downsample_idx, pad_range, cfg_param, solver_param
+from apps.streamlit.components.dashboards._common import downsample_idx, pad_range, cfg_param, solver_param, duration_ms_from_frames, animation_buttons
 Cfg = Dict[str, Any]
 Out = Dict[str, Any]
 
 
-
-
-def _duration_ms_from_frames(T: np.ndarray, frame_idx: np.ndarray, fps_fallback: int) -> int:
-    # Keep animation speed consistent with simulation time even when max_frames caps the number of frames.
-    if len(frame_idx) < 2:
-        return int(round(1000.0 / max(1, int(fps_fallback))))
-    try:
-        dt = float(np.mean(np.diff(T[np.asarray(frame_idx, dtype=int)])))
-    except Exception:
-        dt = float("nan")
-    if not np.isfinite(dt) or dt <= 0:
-        return int(round(1000.0 / max(1, int(fps_fallback))))
-    return max(1, int(round(1000.0 * dt)))
 
 
 def make_lorenz_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go.Figure:
@@ -48,7 +35,7 @@ def make_lorenz_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go.Figure:
         pick = np.linspace(0, len(frame_idx) - 1, max_frames, dtype=int)
         frame_idx = frame_idx[pick]
 
-    duration_ms = _duration_ms_from_frames(T, frame_idx, fps_anim)
+    duration_ms = duration_ms_from_frames(T, frame_idx, fps_fallback=fps_anim)
 
     plot_idx = downsample_idx(len(T), max_plot_pts)
     T_p = T[plot_idx]
@@ -67,7 +54,7 @@ def make_lorenz_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go.Figure:
         rows=3, cols=2,
         specs=[[{"type": "scene", "rowspan": 3}, {}], [None, {}], [None, {}]],
         column_widths=[0.64, 0.36],
-        vertical_spacing=0.10,
+        vertical_spacing=0.14,
         horizontal_spacing=0.06,
         subplot_titles=("", "", "", ""),
     )
@@ -182,42 +169,6 @@ def make_lorenz_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go.Figure:
     fig.frames = frames
 
     if frames:
-        fig.update_layout(
-            updatemenus=[
-                dict(
-                    type="buttons",
-                    direction="left",
-                    x=0.01,
-                    y=1.14,
-                    xanchor="left",
-                    yanchor="top",
-                    buttons=[
-                        dict(
-                            label="Play",
-                            method="animate",
-                            args=[
-                                None,
-                                dict(
-                                    frame=dict(duration=duration_ms, redraw=True),
-                                    transition=dict(duration=0),
-                                    fromcurrent=True,
-                                    mode="immediate",
-                                ),
-                            ],
-                        ),
-                        dict(
-                            label="Pause",
-                            method="animate",
-                            args=[[None], dict(frame=dict(duration=0, redraw=False), transition=dict(duration=0), mode="immediate")],
-                        ),
-                        dict(
-                            label="Reset",
-                            method="animate",
-                            args=[[frames[0].name], dict(frame=dict(duration=0, redraw=True), transition=dict(duration=0), mode="immediate")],
-                        ),
-                    ],
-                )
-            ]
-        )
+        fig.update_layout(updatemenus=animation_buttons(frames, duration_ms, redraw=True, y=1.14))
 
     return fig

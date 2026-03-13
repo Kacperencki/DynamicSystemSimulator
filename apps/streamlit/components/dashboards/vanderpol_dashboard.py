@@ -6,7 +6,7 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from apps.streamlit.components.dashboards._common import downsample_idx, pad_range, cfg_param, solver_param, duration_ms_from_frames
+from apps.streamlit.components.dashboards._common import downsample_idx, pad_range, cfg_param, solver_param, duration_ms_from_frames, animation_buttons
 Cfg = Dict[str, Any]
 Out = Dict[str, Any]
 
@@ -62,7 +62,7 @@ def make_vanderpol_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go.Figur
         cols=2,
         specs=[[{"rowspan": 3}, {}], [None, {}], [None, {}]],
         column_widths=[0.64, 0.36],
-        vertical_spacing=0.10,
+        vertical_spacing=0.18,
         horizontal_spacing=0.06,
         subplot_titles=("", "", "", ""),
     )
@@ -77,8 +77,8 @@ def make_vanderpol_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go.Figur
     )
     fig.add_trace(
         go.Scatter(
-            x=[float(dv_dt[i0])],
-            y=[float(v[i0])],
+            x=[float(v[i0])],
+            y=[float(dv_dt[i0])],
             mode="markers",
             marker=dict(size=8),
             showlegend=False,
@@ -125,8 +125,8 @@ def make_vanderpol_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go.Figur
     )
 
     # axes
-    fig.update_xaxes(range=[dv_min, dv_max], title_text="dv/dt [V/s]", row=1, col=1)
-    fig.update_yaxes(range=[v_min, v_max], title_text="v [V]", row=1, col=1)
+    fig.update_xaxes(range=[v_min, v_max], title_text="v [V]", row=1, col=1)
+    fig.update_yaxes(range=[dv_min, dv_max], title_text="dv/dt [V/s]", row=1, col=1)
 
     fig.update_xaxes(range=[t_min, t_max], title_text="t [s]", row=1, col=2)
     fig.update_yaxes(range=[v_min, v_max], title_text="v [V]", row=1, col=2)
@@ -138,7 +138,7 @@ def make_vanderpol_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go.Figur
     fig.update_yaxes(range=[dv_min, dv_max], title_text="dv/dt [V/s]", row=3, col=2)
 
     fig.update_layout(
-        height=480,
+        height=540,
         margin=dict(l=6, r=6, t=36, b=6),
         font=dict(size=11),
         showlegend=False,
@@ -156,11 +156,11 @@ def make_vanderpol_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go.Figur
 
         if trail_on:
             j0 = max(0, j - trail_max_points)
-            ph_x = dv_p[j0:j]
-            ph_y = v_p[j0:j]
+            ph_x = v_p[j0:j]
+            ph_y = dv_p[j0:j]
         else:
-            ph_x = dv_p[:j]
-            ph_y = v_p[:j]
+            ph_x = v_p[:j]
+            ph_y = dv_p[:j]
 
         fr = go.Frame(
             name=str(k),
@@ -168,7 +168,7 @@ def make_vanderpol_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go.Figur
                 # phase live
                 go.Scatter(x=ph_x, y=ph_y),
                 # phase marker
-                go.Scatter(x=[float(dv_dt[i])], y=[float(v[i])]),
+                go.Scatter(x=[float(v[i])], y=[float(dv_dt[i])]),
                 # v(t) live
                 go.Scatter(x=T_p[:j], y=v_p[:j]),
                 # v marker
@@ -189,56 +189,6 @@ def make_vanderpol_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go.Figur
     fig.frames = frames
 
     if frames:
-        fig.update_layout(
-            updatemenus=[
-                dict(
-                    type="buttons",
-                    direction="left",
-                    x=0.01,
-                    y=1.10,
-                    xanchor="left",
-                    yanchor="top",
-                    buttons=[
-                        dict(
-                            label="Play",
-                            method="animate",
-                            args=[
-                                None,
-                                dict(
-                                    frame=dict(duration=duration_ms, redraw=False),
-                                    transition=dict(duration=0),
-                                    fromcurrent=True,
-                                    mode="immediate",
-                                ),
-                            ],
-                        ),
-                        dict(
-                            label="Pause",
-                            method="animate",
-                            args=[
-                                [None],
-                                dict(
-                                    frame=dict(duration=0, redraw=False),
-                                    transition=dict(duration=0),
-                                    mode="immediate",
-                                ),
-                            ],
-                        ),
-                        dict(
-                            label="Reset",
-                            method="animate",
-                            args=[
-                                [frames[0].name],
-                                dict(
-                                    frame=dict(duration=0, redraw=False),
-                                    transition=dict(duration=0),
-                                    mode="immediate",
-                                ),
-                            ],
-                        ),
-                    ],
-                )
-            ]
-        )
+        fig.update_layout(updatemenus=animation_buttons(frames, duration_ms, redraw=False, y=1.10))
 
     return fig

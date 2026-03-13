@@ -5,7 +5,7 @@ from typing import Dict
 import numpy as np
 import plotly.graph_objects as go
 
-from apps.streamlit.components.dashboards._common import duration_ms_from_frames, cfg_param, solver_param
+from apps.streamlit.components.dashboards._common import animation_buttons, duration_ms_from_frames, cfg_param, solver_param
 
 
 def make_cartpole_animation(cfg: Dict, T, X, system) -> go.Figure:
@@ -120,33 +120,7 @@ def make_cartpole_animation(cfg: Dict, T, X, system) -> go.Figure:
         height=420,
         margin=dict(l=10, r=10, t=30, b=10),
         showlegend=False,
-        updatemenus=[
-            {
-                "type": "buttons",
-                "x": 0.05,
-                "y": 1.10,
-                "xanchor": "left",
-                "buttons": [
-                    {
-                        "label": "Play",
-                        "method": "animate",
-                        "args": [
-                            None,
-                            {
-                                "frame": {"duration": duration_ms, "redraw": True},
-                                "fromcurrent": True,
-                                "transition": {"duration": 0},
-                            },
-                        ],
-                    },
-                    {
-                        "label": "Pause",
-                        "method": "animate",
-                        "args": [[None], {"frame": {"duration": 0, "redraw": False}}],
-                    },
-                ],
-            }
-        ],
+        updatemenus=animation_buttons(frames, duration_ms, redraw=True),
     )
 
     return fig

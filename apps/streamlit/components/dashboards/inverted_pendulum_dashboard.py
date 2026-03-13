@@ -6,7 +6,7 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from apps.streamlit.components.dashboards._common import downsample_idx, pad_range, cfg_param, solver_param, duration_ms_from_frames
+from apps.streamlit.components.dashboards._common import downsample_idx, pad_range, cfg_param, solver_param, duration_ms_from_frames, animation_buttons
 Cfg = Dict[str, Any]
 Out = Dict[str, Any]
 
@@ -73,7 +73,7 @@ def make_inverted_pendulum_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> 
         rows=3, cols=2,
         specs=[[{"rowspan": 3}, {}], [None, {}], [None, {}]],
         column_widths=[0.64, 0.36],
-        vertical_spacing=0.10,
+        vertical_spacing=0.14,
         horizontal_spacing=0.06,
         subplot_titles=("", "", "", ""),
     )
@@ -204,45 +204,7 @@ def make_inverted_pendulum_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> 
     fig.frames = frames
 
     if frames:
-        fig.update_layout(
-            updatemenus=[
-                dict(
-                    type="buttons",
-                    direction="left",
-                    x=0.01,
-                    y=1.10,
-                    xanchor="left",
-                    yanchor="top",
-                    buttons=[
-                        dict(
-                            label="Play",
-                            method="animate",
-                            args=[
-                                None,
-                                dict(
-                                    frame=dict(duration=duration_ms, redraw=False),
-                                    fromcurrent=True,
-                                    transition=dict(duration=0),
-                                ),
-                            ],
-                        ),
-                        dict(
-                            label="Pause",
-                            method="animate",
-                            args=[
-                                [None],
-                                dict(
-                                    frame=dict(duration=0, redraw=False),
-                                    mode="immediate",
-                                    transition=dict(duration=0),
-                                ),
-                            ],
-                        ),
-                    ],
-                )
-            ],
-
-        )
+        fig.update_layout(updatemenus=animation_buttons(frames, duration_ms, redraw=False, y=1.10))
 
     fig.update_layout(
         height=740,

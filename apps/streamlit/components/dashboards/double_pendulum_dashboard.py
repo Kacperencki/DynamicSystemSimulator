@@ -6,7 +6,7 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from apps.streamlit.components.dashboards._common import downsample_idx, pad_range, cfg_param, solver_param, duration_ms_from_frames
+from apps.streamlit.components.dashboards._common import downsample_idx, pad_range, cfg_param, solver_param, duration_ms_from_frames, animation_buttons
 Cfg = Dict[str, Any]
 Out = Dict[str, Any]
 
@@ -69,7 +69,7 @@ def make_double_pendulum_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go
         cols=2,
         specs=[[{"rowspan": 3}, {}], [None, {}], [None, {}]],
         column_widths=[0.64, 0.36],
-        vertical_spacing=0.10,
+        vertical_spacing=0.18,
         horizontal_spacing=0.06,
         subplot_titles=("", "", "", ""),
     )
@@ -77,11 +77,68 @@ def make_double_pendulum_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go
     i0 = int(frame_idx[0]) if len(frame_idx) else 0
 
     # --- Animation (left) ---
-    fig.add_trace(go.Scatter(x=[], y=[], mode="lines", showlegend=False, hoverinfo="skip", name="trail"), row=1, col=1)
-    fig.add_trace(go.Scatter(x=[0.0, float(x1[i0])], y=[0.0, float(y1[i0])], mode="lines", showlegend=False, name="rod1"), row=1, col=1)
-    fig.add_trace(go.Scatter(x=[float(x1[i0]), float(x2[i0])], y=[float(y1[i0]), float(y2[i0])], mode="lines", showlegend=False, name="rod2"), row=1, col=1)
-    fig.add_trace(go.Scatter(x=[float(x1[i0])], y=[float(y1[i0])], mode="markers", marker=dict(size=8), showlegend=False, name="m1"), row=1, col=1)
-    fig.add_trace(go.Scatter(x=[float(x2[i0])], y=[float(y2[i0])], mode="markers", marker=dict(size=10), showlegend=False, name="m2"), row=1, col=1)
+    # Fix colors explicitly so enabling/disabling the trail doesn't change other trace colors.
+    fig.add_trace(
+        go.Scatter(
+            x=[],
+            y=[],
+            mode="lines",
+            showlegend=False,
+            hoverinfo="skip",
+            name="trail",
+            line=dict(color="#808080", width=2),
+        ),
+        row=1,
+        col=1,
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=[0.0, float(x1[i0])],
+            y=[0.0, float(y1[i0])],
+            mode="lines",
+            showlegend=False,
+            name="rod1",
+            line=dict(color="#202020", width=3),
+        ),
+        row=1,
+        col=1,
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=[float(x1[i0]), float(x2[i0])],
+            y=[float(y1[i0]), float(y2[i0])],
+            mode="lines",
+            showlegend=False,
+            name="rod2",
+            line=dict(color="#202020", width=3),
+        ),
+        row=1,
+        col=1,
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=[float(x1[i0])],
+            y=[float(y1[i0])],
+            mode="markers",
+            marker=dict(size=8, color="#ff7f0e"),
+            showlegend=False,
+            name="m1",
+        ),
+        row=1,
+        col=1,
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=[float(x2[i0])],
+            y=[float(y2[i0])],
+            mode="markers",
+            marker=dict(size=10, color="#d62728"),
+            showlegend=False,
+            name="m2",
+        ),
+        row=1,
+        col=1,
+    )
 
     # --- θ(t) (right, top) ---
     fig.add_trace(go.Scatter(x=[], y=[], mode="lines", showlegend=False, name="θ1 live", line=dict(width=2)), row=1, col=2)
@@ -105,25 +162,24 @@ def make_double_pendulum_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go
     fig.update_xaxes(range=[-rng, rng], row=1, col=1, showgrid=False, zeroline=False, visible=False)
     fig.update_yaxes(range=[-rng, rng], row=1, col=1, showgrid=False, zeroline=False, visible=False, scaleanchor="x")
 
-    fig.update_xaxes(range=[t_min, t_max], row=1, col=2, autorange=False, fixedrange=True)
-    fig.update_yaxes(range=[th_min, th_max], row=1, col=2, autorange=False, fixedrange=True)
+    fig.update_xaxes(range=[t_min, t_max], row=1, col=2, autorange=False, fixedrange=True, title_text="t [s]")
+    fig.update_yaxes(range=[th_min, th_max], row=1, col=2, autorange=False, fixedrange=True, title_text="θ₁, θ₂ [rad]")
 
     fig.update_xaxes(range=[t_min, t_max], row=2, col=2, autorange=False, fixedrange=True, title_text="t [s]")
-    fig.update_yaxes(range=[w_min, w_max], row=2, col=2, autorange=False, fixedrange=True)
+    fig.update_yaxes(range=[w_min, w_max], row=2, col=2, autorange=False, fixedrange=True, title_text="ω₁, ω₂ [rad/s]")
 
-    fig.update_xaxes(range=[th_min, th_max], row=3, col=2, autorange=False, fixedrange=True, title_text="θ")
-    fig.update_yaxes(range=[w_min, w_max], row=3, col=2, autorange=False, fixedrange=True, title_text="ω")
+    fig.update_xaxes(range=[th_min, th_max], row=3, col=2, autorange=False, fixedrange=True, title_text="θ [rad]")
+    fig.update_yaxes(range=[w_min, w_max], row=3, col=2, autorange=False, fixedrange=True, title_text="ω [rad/s]")
 
     fig.update_layout(
-        height=480,
+        height=540,
         margin=dict(l=6, r=6, t=36, b=6),
         font=dict(size=11),
         showlegend=False,
         hovermode=False,
     )
 
-    if not trail_on:
-        fig.data[0].visible = False
+    # Do not toggle trace visibility; keep it present and just feed empty data when disabled.
 
     frames = []
     for i in frame_idx:
@@ -201,56 +257,6 @@ def make_double_pendulum_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go
     fig.frames = frames
 
     if frames:
-        fig.update_layout(
-            updatemenus=[
-                dict(
-                    type="buttons",
-                    direction="left",
-                    x=0.01,
-                    y=1.10,
-                    xanchor="left",
-                    yanchor="top",
-                    buttons=[
-                        dict(
-                            label="Play",
-                            method="animate",
-                            args=[
-                                None,
-                                dict(
-                                    frame=dict(duration=duration_ms, redraw=False),
-                                    transition=dict(duration=0),
-                                    fromcurrent=True,
-                                    mode="immediate",
-                                ),
-                            ],
-                        ),
-                        dict(
-                            label="Pause",
-                            method="animate",
-                            args=[
-                                [None],
-                                dict(
-                                    frame=dict(duration=0, redraw=False),
-                                    transition=dict(duration=0),
-                                    mode="immediate",
-                                ),
-                            ],
-                        ),
-                        dict(
-                            label="Reset",
-                            method="animate",
-                            args=[
-                                [frames[0].name],
-                                dict(
-                                    frame=dict(duration=0, redraw=False),
-                                    transition=dict(duration=0),
-                                    mode="immediate",
-                                ),
-                            ],
-                        ),
-                    ],
-                )
-            ]
-        )
+        fig.update_layout(updatemenus=animation_buttons(frames, duration_ms, redraw=False, y=1.10))
 
     return fig

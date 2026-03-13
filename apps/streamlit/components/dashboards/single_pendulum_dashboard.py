@@ -5,7 +5,7 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from apps.streamlit.components.dashboards._common import downsample_idx, pad_range, cfg_param, solver_param, duration_ms_from_frames
+from apps.streamlit.components.dashboards._common import downsample_idx, pad_range, cfg_param, solver_param, duration_ms_from_frames, animation_buttons
 Cfg = Dict[str, Any]
 Out = Dict[str, Any]
 
@@ -54,16 +54,51 @@ def make_single_pendulum_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go
         rows=3, cols=2,
         specs=[[{"rowspan": 3}, {}], [None, {}], [None, {}]],
         column_widths=[0.64, 0.36],
-        vertical_spacing=0.12,
+        vertical_spacing=0.18,
         horizontal_spacing=0.06,
         subplot_titles=("", "", "", ""),
     )
 
     i0 = int(frame_idx[0]) if len(frame_idx) else 0
 
-    fig.add_trace(go.Scatter(x=[], y=[], mode="lines", showlegend=False, hoverinfo="skip", name="trail"), row=1, col=1)
-    fig.add_trace(go.Scatter(x=[0.0, float(px[i0])], y=[0.0, float(py[i0])], mode="lines", showlegend=False, name="rod"), row=1, col=1)
-    fig.add_trace(go.Scatter(x=[float(px[i0])], y=[float(py[i0])], mode="markers", marker=dict(size=9), showlegend=False, name="bob"), row=1, col=1)
+    # Fix colors explicitly so enabling/disabling the trail doesn't change other trace colors.
+    fig.add_trace(
+        go.Scatter(
+            x=[],
+            y=[],
+            mode="lines",
+            showlegend=False,
+            hoverinfo="skip",
+            name="trail",
+            line=dict(color="#808080", width=2),
+        ),
+        row=1,
+        col=1,
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=[0.0, float(px[i0])],
+            y=[0.0, float(py[i0])],
+            mode="lines",
+            showlegend=False,
+            name="rod",
+            line=dict(color="#202020", width=3),
+        ),
+        row=1,
+        col=1,
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=[float(px[i0])],
+            y=[float(py[i0])],
+            mode="markers",
+            marker=dict(size=9, color="#d62728"),
+            showlegend=False,
+            name="bob",
+        ),
+        row=1,
+        col=1,
+    )
 
     fig.add_trace(go.Scatter(x=[], y=[], mode="lines", showlegend=False, name="θ live", line=dict(width=2)), row=1, col=2)
     fig.add_trace(go.Scatter(x=[], y=[], mode="markers", showlegend=False, name="θ marker", marker=dict(size=6)), row=1, col=2)
@@ -83,20 +118,22 @@ def make_single_pendulum_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go
     fig.update_xaxes(range=[t_min, t_max], row=2, col=2, autorange=False, fixedrange=True)
     fig.update_yaxes(range=[w_min, w_max], row=2, col=2, autorange=False, fixedrange=True)
 
-    fig.update_xaxes(range=[th_min, th_max], row=3, col=2, autorange=False, fixedrange=True, title_text="θ")
-    fig.update_yaxes(range=[w_min, w_max], row=3, col=2, autorange=False, fixedrange=True, title_text="ω")
+    fig.update_xaxes(range=[th_min, th_max], row=3, col=2, autorange=False, fixedrange=True, title_text="θ [rad]")
+    fig.update_yaxes(range=[w_min, w_max], row=3, col=2, autorange=False, fixedrange=True, title_text="ω [rad/s]")
+    fig.update_xaxes(title_text="t [s]", row=1, col=2)
+    fig.update_yaxes(title_text="θ [rad]", row=1, col=2)
     fig.update_xaxes(title_text="t [s]", row=2, col=2)
+    fig.update_yaxes(title_text="ω [rad/s]", row=2, col=2)
 
     fig.update_layout(
-        height=480,
+        height=540,
         margin=dict(l=6, r=6, t=36, b=6),
         font=dict(size=11),
         showlegend=False,
         hovermode=False,
     )
 
-    if not trail_on:
-        fig.data[0].visible = False
+    # Do not toggle trace visibility; keep it present and just feed empty data when disabled.
 
     frames = []
     for i in frame_idx:
@@ -159,56 +196,6 @@ def make_single_pendulum_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go
     fig.frames = frames
 
     if frames:
-        fig.update_layout(
-            updatemenus=[
-                dict(
-                    type="buttons",
-                    direction="left",
-                    x=0.01,
-                    y=1.10,
-                    xanchor="left",
-                    yanchor="top",
-                    buttons=[
-                        dict(
-                            label="Play",
-                            method="animate",
-                            args=[
-                                None,
-                                dict(
-                                    frame=dict(duration=duration_ms, redraw=False),
-                                    transition=dict(duration=0),
-                                    fromcurrent=True,
-                                    mode="immediate",
-                                ),
-                            ],
-                        ),
-                        dict(
-                            label="Pause",
-                            method="animate",
-                            args=[
-                                [None],
-                                dict(
-                                    frame=dict(duration=0, redraw=False),
-                                    transition=dict(duration=0),
-                                    mode="immediate",
-                                ),
-                            ],
-                        ),
-                        dict(
-                            label="Reset",
-                            method="animate",
-                            args=[
-                                [frames[0].name],
-                                dict(
-                                    frame=dict(duration=0, redraw=False),
-                                    transition=dict(duration=0),
-                                    mode="immediate",
-                                ),
-                            ],
-                        ),
-                    ],
-                )
-            ]
-        )
+        fig.update_layout(updatemenus=animation_buttons(frames, duration_ms, redraw=False, y=1.10))
 
     return fig

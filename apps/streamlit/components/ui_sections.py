@@ -5,7 +5,14 @@ from typing import Any, Dict, Iterable, Mapping, Optional, Tuple
 
 import streamlit as st
 
-from apps.streamlit.components.controls_common import apply_preset, clear_run_state, reset_defaults_button, reset_widget_keys
+from apps.streamlit.components.controls_common import (
+    apply_preset,
+    clear_run_state,
+    make_reset_callback,
+    reset_defaults_button,
+    reset_to_preset,
+    reset_widget_keys,
+)
 
 
 @dataclass(frozen=True)
@@ -27,21 +34,35 @@ def run_reset_row(prefix: str, reset_keys: Iterable[str], *, reset_label: str = 
     return bool(run_clicked)
 
 
-def run_clear_row_form(prefix: str, reset_keys: Iterable[str], *, clear_label: str = "Clear") -> bool:
+def run_clear_row_form(
+    prefix: str,
+    reset_keys: Iterable[str],
+    *,
+    clear_label: str = "Clear",
+    default_preset: Mapping[str, Any] | None = None,
+    default_preset_name: str | None = None,
+    preset_key_suffix: str = "preset",
+) -> bool:
     """Form-friendly row: Run + Clear.
 
     Must be called inside `with st.form(...):`.
+
+    If `default_preset` is provided, the Clear button restores that preset (Option B).
+    Otherwise, it clears widget keys so widgets fall back to their declared defaults.
+
+    IMPORTANT (Streamlit): Clear action is implemented via `on_click` callback, so we can
+    safely write into st.session_state for already-instantiated widgets.
     """
+
     c1, c2 = st.columns([1, 1])
     with c1:
         run_clicked = st.form_submit_button("Run", type="primary", use_container_width=True)
     with c2:
-        clear_clicked = st.form_submit_button(clear_label, use_container_width=True)
-
-    if clear_clicked:
-        reset_widget_keys(prefix, list(reset_keys))
-        clear_run_state(prefix)
-        st.rerun()
+        st.form_submit_button(
+            clear_label,
+            use_container_width=True,
+            on_click=make_reset_callback(prefix, reset_keys, default_preset, default_preset_name, preset_key_suffix),
+        )
 
     return bool(run_clicked)
 
@@ -81,22 +102,45 @@ def solver_settings(
     prefix: str,
     *,
     expanded: bool = False,
-    methods: tuple[str, str, str] = ("RK45", "Radau", "BDF"),
+    methods: tuple[str, str, str] = ("RK45", "Radau", "DOP853"),
     method_default: str = "RK45",
     rtol_default: float = 1e-4,
-    atol_default: float = 1e-6,
+    atol_default: float = 1e-7,
 ) -> Dict[str, Any]:
     """Solver selection + tolerances."""
     with st.expander("Numerical solver", expanded=expanded):
-        c1, c2, c3 = st.columns(3)
+        # Full-width method selector, then tolerances below.
+        opts = list(methods)
+        idx = opts.index(method_default) if method_default in opts else 0
+        st.selectbox(
+            "Method",
+            opts,
+            index=idx,
+            key=f"{prefix}_solver_method",
+            help="ODE solver used for numerical integration.",
+        )
+
+        c1, c2 = st.columns(2)
         with c1:
-            opts = list(methods)
-            idx = opts.index(method_default) if method_default in opts else 0
-            st.selectbox("Method", opts, index=idx, key=f"{prefix}_solver_method")
+            st.number_input(
+                "rtol",
+                value=float(rtol_default),
+                min_value=1e-12,
+                max_value=1.0,
+                format="%.1e",
+                key=f"{prefix}_rtol",
+                help="Relative tolerance (smaller = higher accuracy, slower).",
+            )
         with c2:
-            st.number_input("rtol", value=float(rtol_default), min_value=1e-12, max_value=1.0, format="%.1e", key=f"{prefix}_rtol")
-        with c3:
-            st.number_input("atol", value=float(atol_default), min_value=1e-12, max_value=1.0, format="%.1e", key=f"{prefix}_atol")
+            st.number_input(
+                "atol",
+                value=float(atol_default),
+                min_value=1e-12,
+                max_value=1.0,
+                format="%.1e",
+                key=f"{prefix}_atol",
+                help="Absolute tolerance (smaller = higher accuracy, slower).",
+            )
 
     return dict(
         solver_method=str(st.session_state.get(f"{prefix}_solver_method", method_default)),
@@ -128,7 +172,7 @@ def simulation_time(
                 kwargs["min_value"] = float(t0_min)
             if t0_max is not None:
                 kwargs["max_value"] = float(t0_max)
-            st.number_input("t₀ [s]", **kwargs)
+            st.number_input("t₀ [s]", help="Simulation start time.", **kwargs)
 
         with c2:
             kwargs = dict(value=t1_default, key=f"{prefix}_t1")
@@ -136,7 +180,7 @@ def simulation_time(
                 kwargs["min_value"] = float(t1_min)
             if t1_max is not None:
                 kwargs["max_value"] = float(t1_max)
-            st.number_input("t₁ [s]", **kwargs)
+            st.number_input("t₁ [s]", help="Simulation end time.", **kwargs)
 
         with c3:
             st.number_input(
@@ -146,6 +190,7 @@ def simulation_time(
                 step=float(dt_step),
                 format=dt_format,
                 key=f"{prefix}_dt",
+                help="Sampling time for stored results and animation.",
             )
 
     t0 = float(st.session_state.get(f"{prefix}_t0", t0_default))
@@ -171,8 +216,24 @@ def animation_performance(
         if layout == "two_columns":
             c1, c2 = st.columns(2)
             with c1:
-                st.slider(fps.label, fps.min, fps.max, fps.value, fps.step, key=f"{prefix}_fps_anim")
-                st.slider(max_frames.label, max_frames.min, max_frames.max, max_frames.value, max_frames.step, key=f"{prefix}_max_frames")
+                st.slider(
+                    fps.label,
+                    fps.min,
+                    fps.max,
+                    fps.value,
+                    fps.step,
+                    key=f"{prefix}_fps_anim",
+                    help="Target animation frame rate.",
+                )
+                st.slider(
+                    max_frames.label,
+                    max_frames.min,
+                    max_frames.max,
+                    max_frames.value,
+                    max_frames.step,
+                    key=f"{prefix}_max_frames",
+                    help="Maximum number of animation frames rendered.",
+                )
                 st.slider(
                     max_plot_pts.label,
                     max_plot_pts.min,
@@ -180,9 +241,15 @@ def animation_performance(
                     max_plot_pts.value,
                     max_plot_pts.step,
                     key=f"{prefix}_max_plot_pts",
+                    help="Maximum number of points drawn in plots (decimation for speed).",
                 )
             with c2:
-                st.checkbox(trail_checkbox_label, value=trail_default, key=f"{prefix}_trail_on")
+                st.checkbox(
+                    trail_checkbox_label,
+                    value=trail_default,
+                    key=f"{prefix}_trail_on",
+                    help="Show a short history (trail) instead of the full curve.",
+                )
                 st.slider(
                     trail_max_points.label,
                     trail_max_points.min,
@@ -190,12 +257,34 @@ def animation_performance(
                     trail_max_points.value,
                     trail_max_points.step,
                     key=f"{prefix}_trail_max_points",
+                    help="Number of points kept in the trail.",
                 )
         else:
-            st.slider(fps.label, fps.min, fps.max, fps.value, fps.step, key=f"{prefix}_fps_anim")
-            st.slider(max_frames.label, max_frames.min, max_frames.max, max_frames.value, max_frames.step, key=f"{prefix}_max_frames")
+            st.slider(
+                fps.label,
+                fps.min,
+                fps.max,
+                fps.value,
+                fps.step,
+                key=f"{prefix}_fps_anim",
+                help="Target animation frame rate.",
+            )
+            st.slider(
+                max_frames.label,
+                max_frames.min,
+                max_frames.max,
+                max_frames.value,
+                max_frames.step,
+                key=f"{prefix}_max_frames",
+                help="Maximum number of animation frames rendered.",
+            )
 
-            st.checkbox(trail_checkbox_label, value=trail_default, key=f"{prefix}_trail_on")
+            st.checkbox(
+                trail_checkbox_label,
+                value=trail_default,
+                key=f"{prefix}_trail_on",
+                help="Show a short history (trail) instead of the full curve.",
+            )
             st.slider(
                 trail_max_points.label,
                 trail_max_points.min,
@@ -203,6 +292,7 @@ def animation_performance(
                 trail_max_points.value,
                 trail_max_points.step,
                 key=f"{prefix}_trail_max_points",
+                help="Number of points kept in the trail.",
             )
 
             st.slider(
@@ -212,6 +302,7 @@ def animation_performance(
                 max_plot_pts.value,
                 max_plot_pts.step,
                 key=f"{prefix}_max_plot_pts",
+                help="Maximum number of points drawn in plots (decimation for speed).",
             )
 
     return dict(
@@ -231,7 +322,22 @@ def logging_settings(
 ) -> tuple[bool, str, str]:
     """Optional persistence of runs (config + arrays)."""
     with st.expander("Logging", expanded=expanded):
-        save_run = st.checkbox("Save run (config + output)", value=False, key=f"{prefix}_save_run")
-        log_dir = st.text_input("Log directory", value=str(default_dir), key=f"{prefix}_log_dir")
-        run_name = st.text_input("Run name (optional)", value="", key=f"{prefix}_run_name")
+        save_run = st.checkbox(
+            "Save run (config + output)",
+            value=False,
+            key=f"{prefix}_save_run",
+            help="Save configuration and simulation outputs to disk.",
+        )
+        log_dir = st.text_input(
+            "Log directory",
+            value=str(default_dir),
+            key=f"{prefix}_log_dir",
+            help="Folder where run artifacts will be saved.",
+        )
+        run_name = st.text_input(
+            "Run name (optional)",
+            value="",
+            key=f"{prefix}_run_name",
+            help="Optional name appended to the saved files.",
+        )
     return bool(save_run), str(log_dir), str(run_name)

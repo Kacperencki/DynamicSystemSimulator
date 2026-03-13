@@ -6,23 +6,11 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from apps.streamlit.components.dashboards._common import downsample_idx, pad_range, cfg_param, solver_param
+from apps.streamlit.components.dashboards._common import downsample_idx, pad_range, cfg_param, solver_param, duration_ms_from_frames, animation_buttons
 Cfg = Dict[str, Any]
 Out = Dict[str, Any]
 
 
-
-
-def _duration_ms_from_frames(T: np.ndarray, frame_idx: np.ndarray, fps_fallback: int) -> int:
-    if len(frame_idx) < 2:
-        return int(round(1000.0 / max(1, int(fps_fallback))))
-    try:
-        dt = float(np.mean(np.diff(T[np.asarray(frame_idx, dtype=int)])))
-    except Exception:
-        dt = float("nan")
-    if not np.isfinite(dt) or dt <= 0:
-        return int(round(1000.0 / max(1, int(fps_fallback))))
-    return max(1, int(round(1000.0 * dt)))
 
 
 def make_dc_motor_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go.Figure:
@@ -42,6 +30,8 @@ def make_dc_motor_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go.Figure
     fps_anim = int(ui.get("fps_anim", 60))
     max_frames = int(ui.get("max_frames", 420))
     max_plot_pts = int(ui.get("max_plot_pts", 2600))
+    trail_on = bool(ui.get("trail_on", False))
+    trail_max_points = int(ui.get("trail_max_points", 200))
 
     # frame selection
     dt_sim = float(np.mean(np.diff(T))) if len(T) > 1 else max(float(cfg_param(cfg, "dt", 0.002)), 1e-6)
@@ -51,7 +41,7 @@ def make_dc_motor_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go.Figure
         pick = np.linspace(0, len(frame_idx) - 1, max_frames, dtype=int)
         frame_idx = frame_idx[pick]
 
-    duration_ms = _duration_ms_from_frames(T, frame_idx, fps_anim)
+    duration_ms = duration_ms_from_frames(T, frame_idx, fps_fallback=fps_anim)
 
     plot_idx = downsample_idx(len(T), max_plot_pts)
     T_p = T[plot_idx]
@@ -72,26 +62,39 @@ def make_dc_motor_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go.Figure
         rows=3, cols=2,
         specs=[[{"rowspan": 3}, {}], [None, {}], [None, {}]],
         column_widths=[0.64, 0.36],
-        vertical_spacing=0.10,
+        vertical_spacing=0.14,
         horizontal_spacing=0.06,
         subplot_titles=("", "", "", ""),
     )
 
+    # If trail is OFF: show full curves and only move the markers (lighter frames).
+    # If trail is ON : show a trailing window of the last `trail_max_points` points.
+    if trail_on:
+        th_line_x, th_line_y = [], []
+        w_line_x, w_line_y = [], []
+        i_line_x, i_line_y = [], []
+        V_line_x, V_line_y = [], []
+    else:
+        th_line_x, th_line_y = T_p, th_p
+        w_line_x, w_line_y = T_p, w_p
+        i_line_x, i_line_y = T_p, i_p
+        V_line_x, V_line_y = T_p, V_p
+
     # Left: theta(t)
-    fig.add_trace(go.Scatter(x=[], y=[], mode="lines", showlegend=False, name="theta", line=dict(width=2)), row=1, col=1)
-    fig.add_trace(go.Scatter(x=[], y=[], mode="markers", showlegend=False, name="theta_m", marker=dict(size=6)), row=1, col=1)
+    fig.add_trace(go.Scatter(x=th_line_x, y=th_line_y, mode="lines", showlegend=False, name="theta", line=dict(width=2)), row=1, col=1)
+    fig.add_trace(go.Scatter(x=[float(T[0])] if len(T) else [], y=[float(theta[0])] if len(theta) else [], mode="markers", showlegend=False, name="theta_m", marker=dict(size=6)), row=1, col=1)
 
     # Right: omega(t)
-    fig.add_trace(go.Scatter(x=[], y=[], mode="lines", showlegend=False, name="w", line=dict(width=2)), row=1, col=2)
-    fig.add_trace(go.Scatter(x=[], y=[], mode="markers", showlegend=False, name="w_m", marker=dict(size=6)), row=1, col=2)
+    fig.add_trace(go.Scatter(x=w_line_x, y=w_line_y, mode="lines", showlegend=False, name="w", line=dict(width=2)), row=1, col=2)
+    fig.add_trace(go.Scatter(x=[float(T[0])] if len(T) else [], y=[float(omega[0])] if len(omega) else [], mode="markers", showlegend=False, name="w_m", marker=dict(size=6)), row=1, col=2)
 
     # Right: i(t)
-    fig.add_trace(go.Scatter(x=[], y=[], mode="lines", showlegend=False, name="i", line=dict(width=2)), row=2, col=2)
-    fig.add_trace(go.Scatter(x=[], y=[], mode="markers", showlegend=False, name="i_m", marker=dict(size=6)), row=2, col=2)
+    fig.add_trace(go.Scatter(x=i_line_x, y=i_line_y, mode="lines", showlegend=False, name="i", line=dict(width=2)), row=2, col=2)
+    fig.add_trace(go.Scatter(x=[float(T[0])] if len(T) else [], y=[float(i[0])] if len(i) else [], mode="markers", showlegend=False, name="i_m", marker=dict(size=6)), row=2, col=2)
 
     # Right: V(t)
-    fig.add_trace(go.Scatter(x=[], y=[], mode="lines", showlegend=False, name="V", line=dict(width=2)), row=3, col=2)
-    fig.add_trace(go.Scatter(x=[], y=[], mode="markers", showlegend=False, name="V_m", marker=dict(size=6)), row=3, col=2)
+    fig.add_trace(go.Scatter(x=V_line_x, y=V_line_y, mode="lines", showlegend=False, name="V", line=dict(width=2)), row=3, col=2)
+    fig.add_trace(go.Scatter(x=[float(T[0])] if len(T) else [], y=[float(V[0])] if len(V) else [], mode="markers", showlegend=False, name="V_m", marker=dict(size=6)), row=3, col=2)
 
     # Axes
     fig.update_xaxes(range=[t_min, t_max], title_text="t [s]", row=1, col=1)
@@ -115,71 +118,54 @@ def make_dc_motor_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go.Figure
     )
 
     frames = []
-    for k, idx in enumerate(frame_idx):
-        idx = int(idx)
-        j = int(np.searchsorted(plot_idx, idx, side="right"))
-        if j < 1:
-            j = 1
+    if trail_on:
+        # Update both lines (with a trailing window) + markers.
+        for k, idx in enumerate(frame_idx):
+            idx = int(idx)
+            j = int(np.searchsorted(plot_idx, idx, side="right"))
+            if j < 1:
+                j = 1
 
-        fr = go.Frame(
-            name=str(k),
-            data=[
-                # theta live + marker
-                go.Scatter(x=T_p[:j], y=th_p[:j]),
-                go.Scatter(x=[float(T[idx])], y=[float(theta[idx])]),
-                # omega live + marker
-                go.Scatter(x=T_p[:j], y=w_p[:j]),
-                go.Scatter(x=[float(T[idx])], y=[float(omega[idx])]),
-                # i live + marker
-                go.Scatter(x=T_p[:j], y=i_p[:j]),
-                go.Scatter(x=[float(T[idx])], y=[float(i[idx])]),
-                # V live + marker
-                go.Scatter(x=T_p[:j], y=V_p[:j]),
-                go.Scatter(x=[float(T[idx])], y=[float(V[idx])]),
-            ],
-            traces=list(range(8)),
-        )
-        frames.append(fr)
+            start = max(0, j - max(1, int(trail_max_points)))
+
+            fr = go.Frame(
+                name=str(k),
+                data=[
+                    # theta trail + marker
+                    go.Scatter(x=T_p[start:j], y=th_p[start:j]),
+                    go.Scatter(x=[float(T[idx])], y=[float(theta[idx])]),
+                    # omega trail + marker
+                    go.Scatter(x=T_p[start:j], y=w_p[start:j]),
+                    go.Scatter(x=[float(T[idx])], y=[float(omega[idx])]),
+                    # i trail + marker
+                    go.Scatter(x=T_p[start:j], y=i_p[start:j]),
+                    go.Scatter(x=[float(T[idx])], y=[float(i[idx])]),
+                    # V trail + marker
+                    go.Scatter(x=T_p[start:j], y=V_p[start:j]),
+                    go.Scatter(x=[float(T[idx])], y=[float(V[idx])]),
+                ],
+                traces=list(range(8)),
+            )
+            frames.append(fr)
+    else:
+        # Only move markers; keep full curves fixed.
+        for k, idx in enumerate(frame_idx):
+            idx = int(idx)
+            fr = go.Frame(
+                name=str(k),
+                data=[
+                    go.Scatter(x=[float(T[idx])], y=[float(theta[idx])]),
+                    go.Scatter(x=[float(T[idx])], y=[float(omega[idx])]),
+                    go.Scatter(x=[float(T[idx])], y=[float(i[idx])]),
+                    go.Scatter(x=[float(T[idx])], y=[float(V[idx])]),
+                ],
+                traces=[1, 3, 5, 7],
+            )
+            frames.append(fr)
 
     fig.frames = frames
 
     if frames:
-        fig.update_layout(
-            updatemenus=[
-                dict(
-                    type="buttons",
-                    direction="left",
-                    x=0.01,
-                    y=1.14,
-                    xanchor="left",
-                    yanchor="top",
-                    buttons=[
-                        dict(
-                            label="Play",
-                            method="animate",
-                            args=[
-                                None,
-                                dict(
-                                    frame=dict(duration=duration_ms, redraw=False),
-                                    transition=dict(duration=0),
-                                    fromcurrent=True,
-                                    mode="immediate",
-                                ),
-                            ],
-                        ),
-                        dict(
-                            label="Pause",
-                            method="animate",
-                            args=[[None], dict(frame=dict(duration=0, redraw=False), transition=dict(duration=0), mode="immediate")],
-                        ),
-                        dict(
-                            label="Reset",
-                            method="animate",
-                            args=[[frames[0].name], dict(frame=dict(duration=0, redraw=False), transition=dict(duration=0), mode="immediate")],
-                        ),
-                    ],
-                )
-            ]
-        )
+        fig.update_layout(updatemenus=animation_buttons(frames, duration_ms, redraw=False, y=1.10))
 
     return fig
