@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import numpy as np
 
 
@@ -15,20 +17,20 @@ class Pendulum:
     """
 
     def __init__(self,
-                 length,
-                 mass,
-                 mode,
-                 damping=0.0,
-                 coulomb=0.0,
-                 drive_amplitude=2.0,
-                 drive_frequency=2.0,
-                 drive_phase=0.0,
-                 gravity=9.81,
-                 mass_model="point",
-                 I=None,
-                 lc=None,
-                 coulomb_vel_eps=1e-3,
-                 ):
+                 length: float,
+                 mass: float,
+                 mode: str,
+                 damping: float = 0.0,
+                 coulomb: float = 0.0,
+                 drive_amplitude: float = 2.0,
+                 drive_frequency: float = 2.0,
+                 drive_phase: float = 0.0,
+                 gravity: float = 9.81,
+                 mass_model: str = "point",
+                 I: float | None = None,
+                 lc: float | None = None,
+                 coulomb_vel_eps: float = 1e-3,
+                 ) -> None:
         # Basic geometry / parameters
         self.l = float(length)   # [m]
         self.m = float(mass)     # [kg]
@@ -57,7 +59,9 @@ class Pendulum:
     # ======================================================================
     # Public API
     # ======================================================================
-    def dynamics(self, t, state, inputs=None, tau_drive=None):
+    def dynamics(self, t: float, state: np.ndarray,
+                 inputs: float | np.ndarray | tuple | None = None,
+                 tau_drive: float | None = None) -> np.ndarray:
         """
         Main dispatcher. All modes go through the same pattern:
             I*theta_ddot = tau_ext + tau_harm - tau_visc - tau_coul - tau_grav
@@ -96,15 +100,15 @@ class Pendulum:
 
         raise ValueError(f"Unknown mode: {self.mode}")
 
-    def state_labels(self):
+    def state_labels(self) -> list[str]:
         return ["theta", "theta_dot"]
 
-    def joint_speed(self, state):
+    def joint_speed(self, state: np.ndarray) -> float:
         """Joint (pivot) angular speed [rad/s]."""
         _, theta_dot = state
         return float(theta_dot)
 
-    def positions(self, state):
+    def positions(self, state: np.ndarray) -> list[tuple[float, float]]:
         """Return positions for visualization: pivot -> COM -> tip."""
         theta, _ = state
         x_tip = self.l * np.sin(theta)
@@ -113,7 +117,7 @@ class Pendulum:
         y_center = -self.lc * np.cos(theta)
         return [(0.0, 0.0), (x_center, y_center), (x_tip, y_tip)]
 
-    def energy_check(self, state):
+    def energy_check(self, state: np.ndarray) -> np.ndarray:
         """Return [T, V, E]."""
         theta, theta_dot = state
         kinetic_energy = 0.5 * self.I * theta_dot**2
@@ -124,11 +128,11 @@ class Pendulum:
     # ======================================================================
     # Core dynamics + friction helpers
     # ======================================================================
-    def _dynamics_core(self, t, state,
-                       include_viscous,
-                       include_coulomb,
-                       include_harmonic,
-                       tau_ext):
+    def _dynamics_core(self, t: float, state: np.ndarray,
+                       include_viscous: bool,
+                       include_coulomb: bool,
+                       include_harmonic: bool,
+                       tau_ext: float) -> np.ndarray:
         """
         Unified equation:
             I*theta_ddot = tau_ext + tau_harm - tau_visc - tau_coul - tau_grav
@@ -158,7 +162,7 @@ class Pendulum:
         theta_ddt = tau_total / self.I
         return np.array([theta_dt, theta_ddt], dtype=float)
 
-    def _coulomb_tau(self, qd):
+    def _coulomb_tau(self, qd: float) -> float:
         """
         Smooth-ish Coulomb friction torque that changes sign with qd.
         For |qd| < eps: scale linearly, for |qd| >= eps: ±fc.
@@ -173,7 +177,7 @@ class Pendulum:
     # ======================================================================
     # Geometry / inertia helper
     # ======================================================================
-    def _inertia(self, mass_model, m, l):
+    def _inertia(self, mass_model: str, m: float, l: float) -> tuple[float, float]:
         """
         Derive I and lc for simple mass model.
         """

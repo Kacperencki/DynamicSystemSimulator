@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import numpy as np
 
 
@@ -21,7 +23,8 @@ class VanDerPol:
         self.C = float(C)
         self.mu = float(mu)
 
-    def dynamics(self, t: float, state: np.ndarray) -> np.ndarray:
+    def dynamics(self, t: float, state: np.ndarray,
+                 inputs: float | np.ndarray | tuple | None = None) -> np.ndarray:
         v, iL = state
 
         # Nonlinear current source
@@ -32,10 +35,10 @@ class VanDerPol:
 
         return np.array([dv_dt, diL_dt], dtype=float)
 
-    def state_labels(self):
+    def state_labels(self) -> list[str]:
         return ["v", "iL"]
 
-    def positions(self, state: np.ndarray):
+    def positions(self, state: np.ndarray) -> list[tuple[float, float]]:
         # No physical geometry; return phase point for convenience.
         v, iL = state
         return [(float(v), float(iL))]

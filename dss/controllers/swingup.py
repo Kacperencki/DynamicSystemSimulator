@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 # dss/controllers/swingup.py
 """
 Energy-based swing-up controller for the inverted pendulum.
@@ -24,7 +26,7 @@ reversed time steps (those calls are passed through without updating state).
 """
 
 import numpy as np
-from typing import Optional
+from typing import Any, Optional
 
 from dss.utils.angles import wrap_to_pi
 
@@ -43,7 +45,7 @@ class AutoSwingUp:
 
     def __init__(
         self,
-        system,
+        system: Any,
         ke: Optional[float] = None,
         kv: Optional[float] = None,
         force_limit: Optional[float] = None,
@@ -59,7 +61,7 @@ class AutoSwingUp:
         dir_k: float = 6.0,
         # rate limiter
         du_max: float = 300.0,
-    ):
+    ) -> None:
         self.system = system
 
         m = float(system.m)
@@ -94,7 +96,7 @@ class AutoSwingUp:
 
         self.du_max = float(max(1e-3, du_max))
         self._last_u = 0.0
-        self._last_t = None
+        self._last_t: Optional[float] = None
 
     # ------------------------------------------------------------------
     # Energy bookkeeping (bottom = 0, upright ≈ 2 m g l_c)
@@ -103,7 +105,7 @@ class AutoSwingUp:
     def energy_desired(self) -> float:
         return self._Edes
 
-    def energy(self, state) -> float:
+    def energy(self, state: np.ndarray) -> float:
         _, _, th, thd = state
         th_up = wrap_to_pi(float(th))           # 0 at upright
         th_down = wrap_to_pi(th_up - np.pi)     # 0 at bottom
@@ -121,7 +123,7 @@ class AutoSwingUp:
     # Main control law
     # ------------------------------------------------------------------
 
-    def cart_force(self, t: float, state) -> float:
+    def cart_force(self, t: float, state: np.ndarray) -> float:
         x, x_dot, th, thd = state
         x = float(x)
         x_dot = float(x_dot)
@@ -199,6 +201,5 @@ class AutoSwingUp:
         return u
 
     # Uniform callable interface: u = pi(t, x)
-    def __call__(self, t, state):
+    def __call__(self, t: float, state: np.ndarray) -> float:
         return self.cart_force(t, state)
-

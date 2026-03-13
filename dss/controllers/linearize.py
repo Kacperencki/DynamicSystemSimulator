@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+from typing import Any, Tuple
+
 import numpy as np
 
 
-def linearize_upright(system, include_damping: bool = True, include_pivot_input: bool = True):
+def linearize_upright(system: Any, include_damping: bool = True,
+                      include_pivot_input: bool = True) -> Tuple[np.ndarray, np.ndarray]:
     """
     Linearize the cart–pole around the upright equilibrium (theta = 0).
 

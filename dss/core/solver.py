@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 # dss/core/solver.py
 """
 Thin wrapper around scipy.integrate.solve_ivp.
@@ -11,6 +13,7 @@ Rule of thumb for tolerances:
 """
 
 import logging
+from typing import Any, Optional, Sequence, Tuple
 
 import numpy as np
 import scipy.integrate as integrate
@@ -30,12 +33,12 @@ class Solver:
 
     def __init__(
         self,
-        system,
-        initial_conditions,
+        system: Any,
+        initial_conditions: Sequence[float] | np.ndarray,
         T: float = 5.0,
         fps: int = 60,
-        t_span=None,
-        t_eval=None,
+        t_span: Optional[Tuple[float, float]] = None,
+        t_eval: Optional[Sequence[float] | np.ndarray] = None,
         method: str = "RK45",
         rtol: float = 1e-4,
         atol: float = 1e-6,
@@ -86,7 +89,7 @@ class Solver:
         self.rtol = float(rtol)
         self.atol = float(atol)
 
-    def run(self):
+    def run(self) -> Any:
         """
         Run the numerical integration.
 

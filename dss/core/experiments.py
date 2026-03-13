@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 # dss/core/experiments.py
 
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Sequence, Tuple
 from time import perf_counter
 
 import numpy as np
@@ -11,12 +13,12 @@ from dss.core.logger import SimulationLogger
 
 def run_simulation_with_diagnostics(
     system: Any,
-    initial_state,
+    initial_state: Sequence[float] | np.ndarray,
     *,
     T: float = 5.0,
     fps: int = 60,
-    t_span=None,
-    t_eval=None,
+    t_span: Optional[Tuple[float, float]] = None,
+    t_eval: Optional[Sequence[float] | np.ndarray] = None,
     method: str = "RK45",
     rtol: float = 1e-4,
     atol: float = 1e-6,

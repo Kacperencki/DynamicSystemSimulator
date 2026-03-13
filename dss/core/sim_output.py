@@ -5,6 +5,7 @@ from typing import Any, Mapping, MutableMapping, Optional, TypedDict
 import numpy as np
 
 
+
 class SimOutput(TypedDict, total=False):
     T: np.ndarray
     X: np.ndarray
@@ -15,7 +16,7 @@ class SimOutput(TypedDict, total=False):
     meta: Mapping[str, Any]
 
 
-def from_ode_result(sol, *, extras: Optional[Mapping[str, Any]] = None) -> SimOutput:
+def from_ode_result(sol: Any, *, extras: Optional[Mapping[str, Any]] = None) -> SimOutput:
     out: SimOutput = {"T": np.asarray(sol.t), "X": np.asarray(sol.y).T}
     if extras:
         out.update(dict(extras))

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 # dss/controllers/simple_switcher.py
 """
 Hard-switching supervisor: swing-up ↔ LQR.
@@ -26,7 +28,7 @@ Note: blend_time and du_max are accepted for UI/runner compatibility but
 """
 
 import numpy as np
-from typing import Optional
+from typing import Any, Optional
 
 from dss.utils.angles import wrap_to_pi
 
@@ -48,9 +50,9 @@ class SimpleSwitcher:
 
     def __init__(
         self,
-        system,
-        lqr_controller,
-        swingup_controller,
+        system: Any,
+        lqr_controller: Any,
+        swingup_controller: Any,
         engage_angle_deg: float = 25.0,
         engage_speed_rad_s: float = 9.0,
         engage_cart_speed: float = 1.2,
@@ -66,7 +68,7 @@ class SimpleSwitcher:
         du_max: Optional[float] = None,
         # optional safety: if not None, force SWING when |theta| exceeds this
         lqr_failsafe_angle_deg: Optional[float] = 120.0,
-    ):
+    ) -> None:
         self.sys = system
         self.c_lqr = lqr_controller
         self.c_swing = swingup_controller
@@ -111,7 +113,7 @@ class SimpleSwitcher:
         lim = float(abs(limit))
         return float(np.clip(u, -lim, lim))
 
-    def cart_force(self, t: float, state) -> float:
+    def cart_force(self, t: float, state: np.ndarray) -> float:
         x, x_dot, theta, theta_dot = state
         t = float(t)
 
@@ -146,6 +148,5 @@ class SimpleSwitcher:
         return u
 
     # Uniform callable interface: u = pi(t, x)
-    def __call__(self, t, state):
+    def __call__(self, t: float, state: np.ndarray) -> float:
         return self.cart_force(t, state)
-

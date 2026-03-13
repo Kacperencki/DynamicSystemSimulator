@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import numpy as np
 
 
@@ -18,29 +20,29 @@ class DCMotor:
 
     def __init__(
         self,
-        R,
-        L,
-        Ke,
-        Kt,
-        J=None,
-        bm=0.0,
-        Im=None,
+        R: float,
+        L: float,
+        Ke: float,
+        Kt: float,
+        J: float | None = None,
+        bm: float = 0.0,
+        Im: float | None = None,
         *,
         voltage_func=None,
         load_func=None,
-        v_mode="constant",
-        V0=6.0,
-        v_offset=0.0,
-        t_step=0.0,
-        v_freq=1.0,
-        v_duty=0.5,
-        load_mode="none",
-        tau_load=0.0,
-        b_load=0.0,
-        tau_c=0.0,
-        omega_eps=0.5,
+        v_mode: str = "constant",
+        V0: float = 6.0,
+        v_offset: float = 0.0,
+        t_step: float = 0.0,
+        v_freq: float = 1.0,
+        v_duty: float = 0.5,
+        load_mode: str = "none",
+        tau_load: float = 0.0,
+        b_load: float = 0.0,
+        tau_c: float = 0.0,
+        omega_eps: float = 0.5,
         **_ignored,
-    ):
+    ) -> None:
         self.R = float(R)      # [ohm]
         self.L = float(L)      # [H]
         self.Ke = float(Ke)    # [V/(rad/s)]
@@ -124,7 +126,8 @@ class DCMotor:
 
     # --- Core model ------------------------------------------------
 
-    def dynamics(self, t, state, inputs=None):
+    def dynamics(self, t: float, state: np.ndarray,
+                 inputs: float | np.ndarray | tuple | None = None) -> np.ndarray:
         i, omega = float(state[0]), float(state[1])
 
         V = self.voltage(t)
@@ -135,12 +138,12 @@ class DCMotor:
 
         return np.array([di_dt, domega_dt], dtype=float)
 
-    def energy_check(self, state):
+    def energy_check(self, state: np.ndarray) -> np.ndarray:
         i, omega = float(state[0]), float(state[1])
         E_ind = 0.5 * self.L * i**2
         E_kin = 0.5 * self.J * omega**2
         E_tot = E_ind + E_kin
         return np.array([E_ind, E_kin, E_tot], dtype=float)
 
-    def state_labels(self):
+    def state_labels(self) -> list[str]:
         return ["i [A]", "omega [rad/s]"]

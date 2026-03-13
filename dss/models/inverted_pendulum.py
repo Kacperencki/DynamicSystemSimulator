@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 # dss/models/inverted_pendulum.py
 """
 Cart-pole (inverted pendulum on a cart) dynamical model.
@@ -78,30 +80,30 @@ class InvertedPendulum:
     # ------------------------------------------------------------------ #
     def __init__(
         self,
-        mode="damped_both",
-        length=0.3,
-        mass=0.2,
-        cart_mass=0.5,
-        gravity=9.81,
+        mode: str = "damped_both",
+        length: float = 0.3,
+        mass: float = 0.2,
+        cart_mass: float = 0.5,
+        gravity: float = 9.81,
         # mass model
-        mass_model="point",    # "point" or "uniform"
-        I_com=None,            # inertia about COM (optional override)
-        lc=None,               # pivot → COM (optional override)
+        mass_model: str = "point",    # "point" or "uniform"
+        I_com: float | None = None,   # inertia about COM (optional override)
+        lc: float | None = None,      # pivot → COM (optional override)
         # friction (viscous + Coulomb)
-        b_cart=0.0,
-        coulomb_cart=0.0,
-        b_pend=0.0,
-        coulomb_pend=0.0,
+        b_cart: float = 0.0,
+        coulomb_cart: float = 0.0,
+        b_pend: float = 0.0,
+        coulomb_pend: float = 0.0,
         # harmonic drives (cart force, pivot torque)
-        cart_drive_amp=0.0,
-        cart_drive_freq=0.0,
-        cart_drive_phase=0.0,
-        pend_drive_amp=0.0,
-        pend_drive_freq=0.0,
-        pend_drive_phase=0.0,
+        cart_drive_amp: float = 0.0,
+        cart_drive_freq: float = 0.0,
+        cart_drive_phase: float = 0.0,
+        pend_drive_amp: float = 0.0,
+        pend_drive_freq: float = 0.0,
+        pend_drive_phase: float = 0.0,
         # Coulomb smoothing gain
-        coulomb_k=1e3,
-    ):
+        coulomb_k: float = 1e3,
+    ) -> None:
         # basic parameters
         self.l = float(length)
         self.m = float(mass)
@@ -160,7 +162,8 @@ class InvertedPendulum:
     # ------------------------------------------------------------------ #
     # Public API (same style as other models)
     # ------------------------------------------------------------------ #
-    def dynamics(self, t, state, inputs=None):
+    def dynamics(self, t: float, state: np.ndarray,
+                 inputs: float | np.ndarray | tuple | None = None) -> np.ndarray:
         """
         Unified entry point.
 
@@ -201,10 +204,10 @@ class InvertedPendulum:
             T_ext=T_ext,
         )
 
-    def state_labels(self):
+    def state_labels(self) -> list[str]:
         return ["x [m]", "x_dot [m/s]", "theta [rad]", "theta_dot [rad/s]"]
 
-    def positions(self, state):
+    def positions(self, state: np.ndarray) -> list[tuple[float, float]]:
         """
         Positions for drawing (pivot on cart top, and pole tip).
         Theta = 0 is upright (tip above pivot).
@@ -216,7 +219,7 @@ class InvertedPendulum:
         tip = (float(tip_x), float(tip_y))
         return [pivot, tip]
 
-    def energy_check(self, state):
+    def energy_check(self, state: np.ndarray) -> np.ndarray:
         """
         Returns [T, V, E].
 
@@ -238,10 +241,10 @@ class InvertedPendulum:
         return np.array([float(T_tot), float(V), float(T_tot + V)], dtype=float)
 
     # optional: alias used in some code
-    def energy(self, state):
+    def energy(self, state: np.ndarray) -> np.ndarray:
         return self.energy_check(state)
 
-    def joint_speed(self, state):
+    def joint_speed(self, state: np.ndarray) -> float:
         """
         Joint speed for coupling with other models (e.g. DC motor).
         Here: pole angular speed theta_dot.
@@ -253,20 +256,20 @@ class InvertedPendulum:
     # ------------------------------------------------------------------ #
     def _core(
         self,
-        t,
-        state,
-        use_cart_damp,
-        use_pend_damp,
-        use_cart_drive,
-        use_pend_drive,
-        F_ext,
-        T_ext,
-    ):
+        t: float,
+        state: np.ndarray,
+        use_cart_damp: bool,
+        use_pend_damp: bool,
+        use_cart_drive: bool,
+        use_pend_drive: bool,
+        F_ext: float,
+        T_ext: float,
+    ) -> np.ndarray:
         x, x_dot, theta, theta_dot = state
         m, M, g, lc, Ip = self.m, self.M, self.g, self.lc, self.Ip
 
         # Smooth sign for Coulomb (avoids chatter near zero)
-        def sign_smooth(v):
+        def sign_smooth(v: float) -> float:
             return float(np.tanh(self.coulomb_k * v))
 
         # friction forces / torques
@@ -314,7 +317,7 @@ class InvertedPendulum:
     # ------------------------------------------------------------------ #
     # Helper: mass model defaults
     # ------------------------------------------------------------------ #
-    def _mass_model_defaults(self, model, m, l):
+    def _mass_model_defaults(self, model: str, m: float, l: float) -> tuple[float, float]:
         """
         Return (lc, I_com) for the given mass model.
         model: "point" or "uniform".

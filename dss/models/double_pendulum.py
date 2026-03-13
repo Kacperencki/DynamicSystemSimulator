@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import numpy as np
 
 
@@ -23,19 +25,19 @@ class DoublePendulum:
     """
 
     def __init__(self,
-                 length1, mass1,
-                 length2, mass2,
-                 mode,
-                 damping1=0.0, damping2=0.0,
-                 coulomb1=0.0, coulomb2=0.0,
-                 drive1_amplitude=0.0, drive1_frequency=0.0, drive1_phase=0.0,
-                 drive2_amplitude=0.0, drive2_frequency=0.0, drive2_phase=0.0,
-                 gravity=9.81,
-                 mass_model="uniform",
-                 I1=None, lc1=None,
-                 I2=None, lc2=None,
-                 coulomb_vel_eps=1e-3,
-                 ):
+                 length1: float, mass1: float,
+                 length2: float, mass2: float,
+                 mode: str,
+                 damping1: float = 0.0, damping2: float = 0.0,
+                 coulomb1: float = 0.0, coulomb2: float = 0.0,
+                 drive1_amplitude: float = 0.0, drive1_frequency: float = 0.0, drive1_phase: float = 0.0,
+                 drive2_amplitude: float = 0.0, drive2_frequency: float = 0.0, drive2_phase: float = 0.0,
+                 gravity: float = 9.81,
+                 mass_model: str = "uniform",
+                 I1: float | None = None, lc1: float | None = None,
+                 I2: float | None = None, lc2: float | None = None,
+                 coulomb_vel_eps: float = 1e-3,
+                 ) -> None:
         # geometry / mass
         self.l1 = float(length1)
         self.m1 = float(mass1)
@@ -63,7 +65,7 @@ class DoublePendulum:
 
         self.mass_model = mass_model.lower().strip()
 
-        def _inertia_pair(m, l):
+        def _inertia_pair(m: float, l: float) -> tuple[float, float]:
             if self.mass_model == "point":
                 I = 0.0
                 lc = l
@@ -89,7 +91,9 @@ class DoublePendulum:
     # ======================================================================
     # Public API
     # ======================================================================
-    def dynamics(self, t, state, inputs=None, tau_drive=None):
+    def dynamics(self, t: float, state: np.ndarray,
+                 inputs: float | np.ndarray | tuple | None = None,
+                 tau_drive: float | tuple | None = None) -> np.ndarray:
         if inputs is not None and tau_drive is None:
             tau_drive = inputs
         if self.mode == "ideal":
@@ -128,15 +132,15 @@ class DoublePendulum:
 
         raise RuntimeError(f"Unhandled mode: {self.mode!r}")
 
-    def state_labels(self):
+    def state_labels(self) -> list[str]:
         return ["theta1", "theta1_dot", "theta2", "theta2_dot"]
 
-    def joint_speed(self, state):
+    def joint_speed(self, state: np.ndarray) -> float:
         """Speed of joint 1 (for DC motor)."""
         theta1, theta1_dot, _, _ = state
         return float(theta1_dot)
 
-    def positions(self, state):
+    def positions(self, state: np.ndarray) -> list[tuple[float, float]]:
         """Positions: pivot -> mass1 -> mass2."""
         theta1, _, theta2, _ = state
         x1 = self.l1 * np.sin(theta1)
@@ -145,7 +149,7 @@ class DoublePendulum:
         y2 = y1 - self.l2 * np.cos(theta2)
         return [(0.0, 0.0), (float(x1), float(y1)), (float(x2), float(y2))]
 
-    def energy_check(self, state):
+    def energy_check(self, state: np.ndarray) -> np.ndarray:
         """
         Returns [T, V, E] using COMs and rotational inertia.
         Angles are absolute from downward vertical.
@@ -180,8 +184,11 @@ class DoublePendulum:
     # ======================================================================
     # Core M(q)qdd + C(q,qd)qd + G(q) + F_fric = tau
     # ======================================================================
-    def _solve_theta_ddot(self, t, state, tau1, tau2,
-                          use_friction, include_harmonic):
+    def _solve_theta_ddot(self, t: float, state: np.ndarray,
+                          tau1: float | str,
+                          tau2: float | str,
+                          use_friction: bool,
+                          include_harmonic: bool) -> np.ndarray:
         """
         Build M(q), C(q,qd)qd, G(q), add friction (viscous + Coulomb),
         solve for [theta1_ddot, theta2_ddot].
@@ -245,7 +252,9 @@ class DoublePendulum:
         return np.array([theta1_dot, theta1_ddot, theta2_dot, theta2_ddot],
                         dtype=float)
 
-    def _map_tau(self, t, spec, A, f, phi, include_harmonic):
+    def _map_tau(self, t: float, spec: float | str,
+                 A: float, f: float, phi: float,
+                 include_harmonic: bool) -> float:
         """
         Convert tau spec to a number:
           - if spec is 'harmonicX' and include_harmonic: A*cos(f*t + phi)
@@ -258,7 +267,7 @@ class DoublePendulum:
                 return A * np.cos(f * t + phi)
         return 0.0
 
-    def _friction_joint(self, qd, b, fc):
+    def _friction_joint(self, qd: float, b: float, fc: float) -> float:
         """
         Combined viscous + Coulomb friction torque for a joint.
         """
