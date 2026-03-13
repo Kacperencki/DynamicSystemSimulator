@@ -53,7 +53,7 @@ class SimpleSwitcher:
         system: Any,
         lqr_controller: Any,
         swingup_controller: Any,
-        engage_angle_deg: float = 25.0,
+        engage_angle_deg: float = 27.0,
         engage_speed_rad_s: float = 9.0,
         engage_cart_speed: float = 1.2,
         hold_time: float = 0.05,             # compat, unused

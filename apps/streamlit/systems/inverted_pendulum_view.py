@@ -96,7 +96,7 @@ PRESETS: Dict[str, Dict[str, Any]] = {
         x0=0.0, xdot0=0.0, th0=float(np.deg2rad(10.0)), thdot0=0.0,
         q_x=1.0, q_xdot=1.0, q_theta=60.0, q_thetad=1.0, u_max=20.0,
         k_e=0.0, su_u_max=25.0,
-        engage_angle_deg=25.0, engage_speed_rad_s=9.0, engage_cart_speed=6.0,
+        engage_angle_deg=27.0, engage_speed_rad_s=9.0, engage_cart_speed=6.0,
         dropout_angle_deg=45.0, dropout_speed_rad_s=30.0, dropout_cart_speed=10.0,
         allow_dropout=True, blend_time=0.12, du_max=800.0,
         t0=0.0, t1=6.0, dt=0.01,
@@ -115,7 +115,7 @@ PRESETS: Dict[str, Dict[str, Any]] = {
         x0=0.0, xdot0=0.0, th0=float(np.deg2rad(15.0)), thdot0=0.0,
         q_x=1.0, q_xdot=2.0, q_theta=120.0, q_thetad=2.0, u_max=20.0,
         k_e=0.0, su_u_max=25.0,
-        engage_angle_deg=25.0, engage_speed_rad_s=9.0, engage_cart_speed=6.0,
+        engage_angle_deg=27.0, engage_speed_rad_s=9.0, engage_cart_speed=6.0,
         dropout_angle_deg=45.0, dropout_speed_rad_s=30.0, dropout_cart_speed=10.0,
         allow_dropout=True, blend_time=0.12, du_max=800.0,
         t0=0.0, t1=8.0, dt=0.01,
@@ -134,7 +134,7 @@ PRESETS: Dict[str, Dict[str, Any]] = {
         x0=0.0, xdot0=0.0, th0=float(np.deg2rad(175.0)), thdot0=0.0,
         q_x=1.0, q_xdot=2.0, q_theta=150.0, q_thetad=3.0, u_max=25.0,
         k_e=0.0, su_u_max=25.0,
-        engage_angle_deg=25.0, engage_speed_rad_s=9.0, engage_cart_speed=6.0,
+        engage_angle_deg=27.0, engage_speed_rad_s=9.0, engage_cart_speed=6.0,
         dropout_angle_deg=45.0, dropout_speed_rad_s=30.0, dropout_cart_speed=10.0,
         allow_dropout=True, blend_time=0.12, du_max=800.0,
         t0=0.0, t1=15.0, dt=0.01,
@@ -267,7 +267,7 @@ def controls(prefix: str) -> Controls:
                 s1, s2 = st.columns(2)
                 with s1:
                     st.caption("Engage LQR when below:")
-                    engage_angle_deg = st.number_input("Angle [°]", value=25.0, min_value=0.0, key=f"{prefix}_engage_angle_deg",
+                    engage_angle_deg = st.number_input("Angle [°]", value=27.0, min_value=0.0, key=f"{prefix}_engage_angle_deg",
                                                        help="Switch to LQR when pole is within this angle of upright.")
                     engage_speed_rad_s = st.number_input("Pole speed [rad/s]", value=9.0, min_value=0.0, key=f"{prefix}_engage_speed_rad_s",
                                                           help="Switch to LQR only if angular speed is below this threshold.")

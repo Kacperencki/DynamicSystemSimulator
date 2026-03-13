@@ -399,7 +399,7 @@ def gen_inverted(out: Path, save_csv: bool, T: float, fps: int, method: str, rto
         system=plant,
         lqr_controller=lqr,
         swingup_controller=swing,
-        engage_angle_deg=25.0,
+        engage_angle_deg=27.0,
         engage_speed_rad_s=9.0,
         engage_cart_speed=6.0,
         dropout_angle_deg=45.0,

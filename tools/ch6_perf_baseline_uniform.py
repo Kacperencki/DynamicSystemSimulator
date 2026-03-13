@@ -141,7 +141,7 @@ def build_cases(include_inverted_closed: bool) -> list[Case]:
             system=plant,
             lqr_controller=lqr,
             swingup_controller=swing,
-            engage_angle_deg=25.0,
+            engage_angle_deg=27.0,
             engage_speed_rad_s=9.0,
             engage_cart_speed=6.0,
             dropout_angle_deg=45.0,

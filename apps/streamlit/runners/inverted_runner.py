@@ -225,7 +225,7 @@ def run_ip_closed(
             plant,
             lqr_controller=lqr,
             swingup_controller=swing,
-            engage_angle_deg=float(switch_set.get("engage_angle_deg", 25.0)),
+            engage_angle_deg=float(switch_set.get("engage_angle_deg", 27.0)),
             engage_speed_rad_s=float(switch_set.get("engage_speed_rad_s", 9.0)),
             engage_cart_speed=float(switch_set.get("engage_cart_speed", 1.2)),
             dropout_angle_deg=float(switch_set.get("dropout_angle_deg", 110.0)),
