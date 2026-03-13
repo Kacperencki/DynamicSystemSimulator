@@ -1,3 +1,23 @@
+# apps/streamlit/runners/_common.py
+"""
+Shared runner utilities used by all system-specific runner modules.
+
+Two entry points
+----------------
+run_from_cfg(cfg, ...)
+    Full config-driven path: config dict → build_system → run_system.
+    Use when you have a complete serialisable config (e.g. loaded from JSON).
+
+run_from_system(system, x0, cfg, ...)
+    Pre-built system path: already-constructed model/wrapper → run_system.
+    Use in runners that build controllers with Python code (most runners do this).
+
+Logging
+-------
+Set save_run=True to activate SimulationLogger, which writes run metadata to
+{log_dir}/runs.jsonl and optionally saves config.json + output.npz per run.
+"""
+
 from __future__ import annotations
 
 from typing import Any, Dict, Tuple, Optional

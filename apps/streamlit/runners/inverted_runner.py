@@ -1,4 +1,28 @@
 # apps/streamlit/runners/inverted_runner.py
+"""
+Simulation runners for the inverted pendulum / cart-pole system.
+
+Exported functions
+------------------
+run_ip_open(params, ic, t0, t1, dt, ...)
+    Open-loop: plant dynamics only, no control force.
+
+run_ip_closed(ctrl_mode, params, lqr_set, swing_set, switch_set, ic, t0, t1, dt, ...)
+    Closed-loop: plant wrapped with controller.
+    ctrl_mode selects the controller type:
+      "LQR stabilizer"       → AutoLQR only
+      "Swing-up only"        → AutoSwingUp only
+      "Swing-up + LQR ..."   → SimpleSwitcher (swing-up → LQR handoff)
+
+LQR weight mapping (UI → Bryson magnitudes)
+-------------------------------------------
+The UI exposes intuitive "weight" sliders (q_x, q_theta, …) rather than the
+raw Bryson allowed-amplitude values.  The mapping is:
+    allowed_amplitude = base_amplitude / sqrt(weight / base_weight)
+
+So:  weight ↑  →  allowed amplitude ↓  →  stronger correction of that state.
+Defaults (base weights): q_x=1, q_xdot=1, q_theta=60, q_thetad=1.
+"""
 
 from __future__ import annotations
 
@@ -15,20 +39,27 @@ from dss.controllers.simple_switcher import SimpleSwitcher
 from apps.streamlit.runners._common import run_from_system
 
 
+# ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
+
 def _coerce_mode(mode: str) -> str:
-    # Backwards compatibility: older UI used a generic "damped" option.
+    """Map legacy UI mode name to the model's internal mode string."""
+    # Older UI offered a generic "damped" option; model expects "damped_both"
     if mode == "damped":
         return "damped_both"
     return mode
 
 
 def _plant_from_params(params: Dict[str, Any]):
-    """Build the inverted pendulum plant from Streamlit params.
+    """Build the InvertedPendulum plant from a Streamlit controls dict.
 
-    Supports both the new names (length/mass/cart_mass) and legacy names (l/m/M).
+    Accepts both new names (length/mass/cart_mass) and legacy names (l/m/M)
+    so old presets / saved configs continue to work.
     """
     mode = _coerce_mode(str(params.get("mode", "damped_both")))
 
+    # Parameter resolution order: new name → legacy short → fallback default
     length = float(params.get("length", params.get("l", params.get("L", 0.3))))
     mass = float(params.get("mass", params.get("m", 0.2)))
     cart_mass = float(params.get("cart_mass", params.get("M", 0.5)))
@@ -42,11 +73,13 @@ def _plant_from_params(params: Dict[str, Any]):
         cart_mass=cart_mass,
         g=g,
         mass_model=str(params.get("mass_model", "point")),
+        # Viscous and Coulomb friction for cart and pole
         b_cart=float(params.get("b_cart", 0.0)),
         coulomb_cart=float(params.get("coulomb_cart", 0.0)),
         b_pend=float(params.get("b_pend", 0.0)),
         coulomb_pend=float(params.get("coulomb_pend", 0.0)),
-        coulomb_k=float(params.get("coulomb_k", 1e3)),
+        coulomb_k=float(params.get("coulomb_k", 1e3)),   # tanh smoothing gain for Coulomb sign
+        # Optional harmonic external drives (cart force and pole torque)
         cart_drive_amp=float(params.get("cart_drive_amp", 0.0)),
         cart_drive_freq=float(params.get("cart_drive_freq", 0.0)),
         cart_drive_phase=float(params.get("cart_drive_phase", 0.0)),
@@ -56,6 +89,10 @@ def _plant_from_params(params: Dict[str, Any]):
     )
     return plant, mode
 
+
+# ---------------------------------------------------------------------------
+# Public runners
+# ---------------------------------------------------------------------------
 
 def run_ip_open(
     params: Dict,
@@ -71,14 +108,16 @@ def run_ip_open(
     log_dir: str = "logs",
     run_name: str = "",
 ) -> Tuple[Dict, Dict]:
-    """Open-loop inverted pendulum (no control)."""
+    """Open-loop simulation: no control force applied to the cart."""
     plant, mode = _plant_from_params(params)
 
     x0, xdot0, th0, thdot0 = ic["x0"], ic["xdot0"], ic["th0"], ic["thdot0"]
 
+    # Cap fps to 200 Hz to avoid unnecessarily large output arrays
     FPS_CAP = 200.0
     dt_eff = max(float(dt), 1.0 / FPS_CAP)
 
+    # Config dict stored alongside simulation output for reproducibility / logging
     cfg = dict(
         sys="ip_open",
         model={"name": "inverted_pendulum", "mode": mode, "params": dict(params)},
@@ -95,6 +134,7 @@ def run_ip_open(
         run_name=run_name,
     )
 
+    # Compute energy components [T, V, E] at each time step for the dashboard
     X = np.asarray(out["X"])
     E_parts = np.array([plant.energy_check(s) for s in X])
     out["E_parts"] = E_parts
@@ -119,28 +159,32 @@ def run_ip_closed(
     log_dir: str = "logs",
     run_name: str = "",
 ) -> Tuple[Dict, Dict]:
-    """Closed-loop inverted pendulum: plant + controller wrapper."""
+    """Closed-loop simulation: plant + controller (LQR, swing-up, or switcher)."""
 
     plant, mode = _plant_from_params(params)
 
-    # ----- LQR parameter mapping (GUI weights → AutoLQR magnitudes) ------
+    # ------------------------------------------------------------------
+    # Controller factory functions (defined here to close over `plant`)
+    # ------------------------------------------------------------------
+
     def build_lqr() -> AutoLQR:
+        """Convert UI weight sliders to Bryson allowed-amplitude values for AutoLQR."""
         q_x = float(lqr_set.get("q_x", 1.0))
         q_xdot = float(lqr_set.get("q_xdot", 1.0))
         q_theta = float(lqr_set.get("q_theta", 60.0))
         q_thetad = float(lqr_set.get("q_thetad", 1.0))
         u_max = float(lqr_set.get("u_max", 20.0))
 
-        # Base "allowed magnitudes" (Bryson-style defaults)
-        base_x_max = 0.25
-        base_xd_max = 2.0
-        base_theta_max_deg = 8.0
-        base_thetad_max = 4.0
+        # Reference (base) allowed amplitudes at default weights
+        base_x_max = 0.25          # [m]     cart position
+        base_xd_max = 2.0          # [m/s]   cart velocity
+        base_theta_max_deg = 8.0   # [deg]   pole angle
+        base_thetad_max = 4.0      # [rad/s] pole angular velocity
 
-        # Monotonic mapping: higher weight => smaller allowed magnitude
+        # Monotonic mapping: weight ↑  →  scale ↑  →  allowed amplitude ↓  →  stronger gain
         x_scale = np.sqrt(max(q_x, 1e-6) / 1.0)
         xd_scale = np.sqrt(max(q_xdot, 1e-6) / 1.0)
-        th_scale = np.sqrt(max(q_theta, 1e-6) / 60.0)
+        th_scale = np.sqrt(max(q_theta, 1e-6) / 60.0)   # normalised to default q_theta=60
         thd_scale = np.sqrt(max(q_thetad, 1e-6) / 1.0)
 
         x_max = base_x_max / x_scale
@@ -156,7 +200,7 @@ def run_ip_closed(
             thetad_max=float(lqr_set.get("thetad_max", thetad_max)),
             u_max=u_max,
         )
-        # Keep compatibility with switcher logic that may set these later
+        # Allow optional explicit references (used when chaining with switcher)
         if "x_ref" in lqr_set:
             lqr.x_ref = float(lqr_set["x_ref"])
         if "theta_ref" in lqr_set:
@@ -164,12 +208,19 @@ def run_ip_closed(
         return lqr
 
     def build_swing() -> AutoSwingUp:
-        ke = float(swing_set.get("k_e", swing_set.get("ke", 1.0)))
-        u_max = float(swing_set.get("u_max", swing_set.get("force_limit", 25.0)))
-        # AutoSwingUp uses force_limit as actuator saturation
+        """Build energy-based swing-up controller.
+
+        ke=0 in the UI means "use physics-based default" (5 / (m·lc)).
+        """
+        ke_raw = swing_set.get("k_e", swing_set.get("ke", None))
+        ke_float = float(ke_raw) if ke_raw is not None else 0.0
+        ke = None if ke_float == 0.0 else ke_float   # None → AutoSwingUp computes default
+        u_raw = swing_set.get("u_max", swing_set.get("force_limit", None))
+        u_max = float(u_raw) if u_raw is not None else 25.0
         return AutoSwingUp(plant, ke=ke, force_limit=u_max)
 
     def build_switch(lqr: AutoLQR, swing: AutoSwingUp) -> SimpleSwitcher:
+        """Build hard swing-up ↔ LQR switcher from UI settings."""
         return SimpleSwitcher(
             plant,
             lqr_controller=lqr,
@@ -183,7 +234,9 @@ def run_ip_closed(
             hold_time=float(switch_set.get("hold_time", 0.05)),
         )
 
-    # ----- Build controller by mode -------------------------------
+    # ------------------------------------------------------------------
+    # Select and build controller based on UI mode string
+    # ------------------------------------------------------------------
     if ctrl_mode == "LQR stabilizer":
         controller = build_lqr()
         ctrl_name = "ip_lqr"
@@ -201,6 +254,7 @@ def run_ip_closed(
     else:
         raise ValueError(f"Unsupported ctrl_mode: {ctrl_mode!r}")
 
+    # Wrap plant + controller: ClosedLoopCart.dynamics() calls controller internally
     closed = ClosedLoopCart(system=plant, controller=controller)
 
     x0, xdot0, th0, thdot0 = ic["x0"], ic["xdot0"], ic["th0"], ic["thdot0"]
@@ -226,6 +280,7 @@ def run_ip_closed(
         run_name=run_name,
     )
 
+    # Evaluate plant energy (not closed-loop wrapper) at each stored time step
     X = np.asarray(out["X"])
     E_parts = np.array([plant.energy_check(s) for s in X])
     out["E_parts"] = E_parts

@@ -1,3 +1,31 @@
+# apps/streamlit/components/dashboards/_common.py
+"""
+Shared utilities for all dashboard figure builders.
+
+Functions
+---------
+downsample_idx(n, max_pts)
+    Returns an index array of at most max_pts evenly-spaced indices into a
+    length-n array.  Used to cap the number of trace points in Plotly charts
+    without losing the shape of the signal.
+
+pad_range(y, pad_frac=0.08)
+    Computes a (min, max) range with 8% padding — prevents traces from touching
+    the plot borders.  Handles constant signals gracefully.
+
+duration_ms_from_frames(T, frame_idx, fps_fallback)
+    Converts the simulation time grid to a Plotly frame duration in milliseconds
+    so that the animation plays back at real-time speed.
+
+cfg_param(cfg, key, default)
+    Safely extracts a model parameter from the nested config dict, with a
+    fallback to the flat top-level dict for backwards compatibility.
+
+animation_buttons(frames, duration_ms)
+    Returns the Plotly updatemenus list with a ▶⏸ play/pause toggle and a ↩
+    reset-to-first-frame button.  Pass redraw=True for 3-D scenes (Lorenz).
+"""
+
 from __future__ import annotations
 
 from typing import Tuple
@@ -89,3 +117,68 @@ def solver_param(cfg: Mapping[str, Any], key: str, default: Any = None) -> Any:
         return cfg.get(key, default)
     except Exception:
         return default
+
+
+def animation_buttons(frames, duration_ms: int, *, redraw: bool = False, y: float = 1.08) -> list:
+    """Return Plotly updatemenus list: ▶⏸ play/pause toggle + ↩ reset.
+
+    The play/pause button uses Plotly's args2 mechanism: first click plays,
+    second click pauses, and so on — a true single-button toggle.
+
+    Usage:
+        if frames:
+            fig.update_layout(updatemenus=animation_buttons(frames, duration_ms))
+    """
+    if not frames:
+        return []
+    first_name = frames[0].name
+    return [
+        dict(
+            type="buttons",
+            direction="left",
+            showactive=True,
+            active=-1,
+            x=0.0,
+            y=y,
+            xanchor="left",
+            yanchor="top",
+            pad={"r": 4, "t": 4},
+            buttons=[
+                dict(
+                    label="▶⏸",
+                    method="animate",
+                    # First click: play
+                    args=[
+                        None,
+                        dict(
+                            frame=dict(duration=duration_ms, redraw=redraw),
+                            fromcurrent=True,
+                            transition=dict(duration=0),
+                            mode="immediate",
+                        ),
+                    ],
+                    # Second click: pause (alternates with args on each click)
+                    args2=[
+                        [None],
+                        dict(
+                            frame=dict(duration=0, redraw=False),
+                            transition=dict(duration=0),
+                            mode="immediate",
+                        ),
+                    ],
+                ),
+                dict(
+                    label="↩",
+                    method="animate",
+                    args=[
+                        [first_name],
+                        dict(
+                            frame=dict(duration=0, redraw=redraw),
+                            transition=dict(duration=0),
+                            mode="immediate",
+                        ),
+                    ],
+                ),
+            ],
+        )
+    ]

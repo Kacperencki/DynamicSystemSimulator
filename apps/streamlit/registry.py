@@ -1,4 +1,16 @@
 # apps/streamlit/registry.py
+"""
+System registry: maps menu display names → SystemSpec factories.
+
+To add a new system to the app
+--------------------------------
+1. Create apps/streamlit/systems/my_system_view.py with a get_spec() function.
+2. Import get_spec here (alias it to avoid name clashes).
+3. Add an entry to SYSTEM_FACTORIES with the display name as key.
+
+The factories are called lazily (on first selection) so importing this module
+at startup does not construct all specs or import all DSS models upfront.
+"""
 
 from __future__ import annotations
 
