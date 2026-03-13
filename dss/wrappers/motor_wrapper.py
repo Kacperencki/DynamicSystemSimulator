@@ -1,3 +1,4 @@
+from __future__ import annotations
 import numpy as np
 
 
@@ -17,7 +18,7 @@ class MotorWrapper:
 
 
 
-    def dynamics(self, t, state):
+    def dynamics(self, t: float, state: np.ndarray) -> np.ndarray:
         i = state[0]
         other_state = state[1:]
 
@@ -38,9 +39,9 @@ class MotorWrapper:
 
         return np.concatenate(([di_dt], other_state_dot))
 
-    def state_labels(self):
-        return ["i [A]"] +(self.model.state_labels())
+    def state_labels(self) -> list[str]:
+        return ["i [A]"] + (self.model.state_labels())
 
-    def positions(self, state):
+    def positions(self, state: np.ndarray) -> list:
         state = state[1:]
         return self.model.positions(state)

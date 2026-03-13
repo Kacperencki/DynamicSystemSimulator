@@ -34,7 +34,7 @@ class ClosedLoopCart:
         self.system = system        # InvertedPendulum (or compatible plant)
         self.controller = controller  # AutoLQR, AutoSwingUp, SimpleSwitcher, …
 
-    def dynamics(self, t, state, inputs=None):
+    def dynamics(self, t: float, state: np.ndarray, inputs: float | None = None) -> np.ndarray:
         # Guard against NaN/Inf states that would produce meaningless control signals
         if np.any(np.isnan(state)) or np.any(np.isinf(state)):
             raise FloatingPointError(f"[Dynamics Error] Bad state at t={t}: {state}")
@@ -55,18 +55,18 @@ class ClosedLoopCart:
     # Delegation to plant (transparent for dashboards and diagnostics)
     # ------------------------------------------------------------------
 
-    def positions(self, state):
+    def positions(self, state: np.ndarray) -> list:
         """(x, y) positions of key points — delegated to plant."""
         return self.system.positions(state)
 
-    def energy_check(self, state):
+    def energy_check(self, state: np.ndarray) -> np.ndarray:
         """[T, V, E_total] energy components — delegated to plant."""
         return self.system.energy_check(state)
 
-    def energy(self, state):
+    def energy(self, state: np.ndarray) -> np.ndarray:
         """Alias for energy_check() (some downstream code uses .energy())."""
         return self.energy_check(state)
 
-    def state_labels(self):
+    def state_labels(self) -> list[str]:
         """Human-readable state dimension names — delegated to plant."""
         return self.system.state_labels()

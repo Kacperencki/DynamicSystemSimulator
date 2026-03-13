@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import numpy as np
 import csv
+from typing import Any, Optional
 from dss.utils.angles import wrap_to_pi
 
 
@@ -33,8 +34,8 @@ class AutoSwitcher:
       swing has: cart_force(t, state).
     """
 
-    def __init__(self, system, lqr_controller, swingup_controller,
-                 tuning: SimpleTuning | None = None, verbose: bool = False):
+    def __init__(self, system: Any, lqr_controller: Any, swingup_controller: Any,
+                 tuning: SimpleTuning | None = None, verbose: bool = False) -> None:
         self.sys = system
         self.lqr = lqr_controller
         self.swing = swingup_controller
@@ -102,13 +103,13 @@ class AutoSwitcher:
                   f"u_sw={rec['u_swing']:+6.2f} u_lqr={rec['u_lqr']:+6.2f} "
                   f"u={rec['u_out']:+6.2f}{' *' if clamped else ''}")
 
-    def get_logs(self, reset: bool = False):
+    def get_logs(self, reset: bool = False) -> list[dict]:
         data = self.logs[:] if not reset else self.logs[:]
         if reset:
             self.logs.clear()
         return data
 
-    def dump_csv(self, path: str):
+    def dump_csv(self, path: str) -> None:
         if not self.logs:
             return
         # Collect union of keys
@@ -127,7 +128,7 @@ class AutoSwitcher:
     def _eligible(self, th_abs: float, thd_abs: float) -> bool:
         return (th_abs <= self.th_full) and (thd_abs <= self.w_full)
 
-    def _enter_lqr(self, t: float, state):
+    def _enter_lqr(self, t: float, state: np.ndarray) -> None:
         x, x_dot, th, th_dot = state
         th_err = wrap_to_pi(th)
         u_swing = float(self.swing.cart_force(t, state))
@@ -153,7 +154,7 @@ class AutoSwitcher:
 
         self._log_event(t, "enter_LQR", x_ref=f"{x_ref:+.3f}", u_swing=f"{u_swing:+.2f}")
 
-    def _update_lqr_decay_and_ramp(self, t: float):
+    def _update_lqr_decay_and_ramp(self, t: float) -> None:
         elapsed = self._time_in_mode(t)
         tau = max(1e-6, self.cfg.x_ref_decay_tau)
         self.lqr.x_ref = float(np.exp(-elapsed / tau) * self._x_latch)
@@ -165,7 +166,7 @@ class AutoSwitcher:
             self.lqr.force_limit = self.F_nominal
 
     # ---- main API ----
-    def cart_force(self, t: float, state) -> float:
+    def cart_force(self, t: float, state: np.ndarray) -> float:
         if self.t0 is None:
             self.t0 = t
             self.t_mode = t
@@ -218,6 +219,6 @@ class AutoSwitcher:
         return u_out
 
     # Uniform callable interface: u = pi(t, x)
-    def __call__(self, t, state):
+    def __call__(self, t: float, state: np.ndarray) -> float:
         return self.cart_force(t, state)
 

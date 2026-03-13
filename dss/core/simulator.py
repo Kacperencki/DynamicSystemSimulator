@@ -47,7 +47,7 @@ def simulate(
     rtol: float = 1e-4,
     atol: float = 1e-6,
     return_diagnostics: bool = False,
-):
+) -> Any:
     """Run a simulation and return the SciPy solution (and optionally diagnostics)."""
     t0 = perf_counter()
     sol = Solver(
@@ -100,7 +100,7 @@ class Simulator:
         self.rtol = float(rtol)
         self.atol = float(atol)
 
-    def run(self, *, return_diagnostics: bool = False):
+    def run(self, *, return_diagnostics: bool = False) -> Any:
         return simulate(
             self.system,
             self.initial_conditions,
