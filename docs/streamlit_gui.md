@@ -66,6 +66,25 @@ To keep the GUI responsive, runners should:
 - avoid generating unnecessarily dense trajectories,
 - downsample data used for animation/plotting where appropriate.
 
+## Parameter labels and help tooltips
+
+Every parameter widget in DSS uses a short, readable label (no variable-name clutter) and a `help=` argument that renders as a **?** icon in the UI:
+
+```python
+st.number_input(
+    "Pole length [m]",
+    help="Physical length of the pendulum rod from pivot to tip.",
+    ...
+)
+```
+
+When adding new widgets, follow this convention:
+- Keep labels concise (fits in a narrow column without wrapping).
+- Put units in the label: `"Mass [kg]"`, `"Speed [rad/s]"`.
+- Put the physical explanation in `help=`.
+
+Selectboxes also carry `help=` text explaining each option.
+
 ## Session state and reruns
 
 Streamlit reruns the script on every widget interaction. DSS avoids rerunning expensive simulations by:

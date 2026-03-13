@@ -45,15 +45,20 @@ Optional but recommended:
 
 ## 2) Register the model
 
-Add it to `dss/models/__init__.py` so it can be obtained through a registry (useful for scripts and uniform pipelines).
-
-Example:
+Add it to `dss/models/__init__.py` so it can be created by name through the registry. The file contains two alias dicts — add an entry to both:
 
 ```python
+# in dss/models/__init__.py
 from dss.models.my_system import MySystem
 
-MODEL_REGISTRY["my_system"] = MySystem
+# Human-readable display name → class
+MODEL_CLASSES["My System"] = MySystem
+
+# Short key used in config dicts
+MODEL_ALIASES["my_system"] = MySystem
 ```
+
+After this, `build_system(cfg)` in `dss/core/pipeline.py` can construct your model from a plain config dict.
 
 ---
 
@@ -79,7 +84,7 @@ apps/streamlit/systems/my_system_view.py
 
 Follow the pattern used in existing views:
 
-- render a small set of parameter widgets,
+- render a small set of parameter widgets (use `help=` on every widget — see `docs/streamlit_gui.md`),
 - call a runner function that returns `(cfg, out)`,
 - render a Plotly dashboard.
 

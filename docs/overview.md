@@ -7,8 +7,7 @@ Dynamic System Simulator (DSS) is organized as a **numerical core** plus an **in
 
 The project is designed for *educational use* and *reproducible experiments*: the same model code can be executed from:
 - the Streamlit interface,
-- offline tools under `tools/`,
-- legacy scripts under `scripts_leagacy/` (kept for reference).
+- offline tools under `tools/`.
 
 ## Concepts and data flow
 
@@ -75,8 +74,5 @@ This distinction matters because:
 - `apps/streamlit/`  
   Streamlit registry, shared UI components, and dashboards.
 
-- `tools/`  
+- `tools/`
   Supported offline utilities (e.g., figure/table generators for Chapter 6).
-
-- `scripts_leagacy/`  
-  Older scripts kept for reference; expect some drift from the current API.
