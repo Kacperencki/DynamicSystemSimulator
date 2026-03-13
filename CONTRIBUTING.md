@@ -5,17 +5,9 @@ Changes should preserve the boundary between these two layers.
 
 ## Getting started
 
-Clone the repository and install in editable mode with development extras:
+Install the base dependencies as described in the [README](README.md), then add the development extras:
 
 ```bash
-python -m venv .venv
-
-# Windows:
-.venv\Scripts\activate
-# macOS/Linux:
-source .venv/bin/activate
-
-python -m pip install --upgrade pip
 python -m pip install -e ".[gui,dev]"
 ```
 

@@ -105,12 +105,6 @@ python tools/ch6_perf_baseline_uniform.py \
   --method DOP853 --rtol 1e-4 --atol 1e-7 --T 10 --fps 200 --repeats 5
 ```
 
-## Documentation (MkDocs)
-
-```bash
-mkdocs serve
-```
-
 ## Where to start reading the code
 
 | Goal | Start here |
