@@ -1,3 +1,37 @@
+"""
+dss/core/pipeline.py
+====================
+Config-driven simulation pipeline.
+
+Typical call chain
+------------------
+  run_config(cfg)
+      └─ build_system(cfg)      # constructs model (+ optional controller wrapper)
+      └─ run_system(system, x0) # integrates ODE, handles logging, saves bundle
+
+Config dict structure (all keys optional unless noted)
+------------------------------------------------------
+  {
+    "model": {
+        "name": "pendulum",   # REQUIRED — registry key (see dss/models/__init__.py)
+        "mode": "damped",     # model mode string
+        "params": { ... }     # constructor kwargs (UI names accepted, aliases applied)
+    },
+    "controller": {           # omit for open-loop simulations
+        "name": "ip_lqr",
+        "params": { ... }
+    },
+    "wrapper": {              # default "closed_loop_cart" when controller is present
+        "name": "closed_loop_cart"
+    },
+    "initial_state": [0, 0, 0.1, 0],  # REQUIRED in run_config()
+    "solver": {
+        "t0": 0.0, "t1": 10.0, "dt": 0.01,
+        "method": "RK45", "rtol": 1e-4, "atol": 1e-7
+    }
+  }
+"""
+
 from __future__ import annotations
 
 import json
@@ -15,16 +49,23 @@ from dss.controllers import get_controller
 from dss.wrappers.closed_loop_cart import ClosedLoopCart
 
 
+# ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
+
 def _parse_solver(cfg: Dict[str, Any]) -> Dict[str, Any]:
+    """Extract solver settings from config and convert dt → fps for Solver."""
     solver = cfg.get("solver", {}) or {}
     t0 = float(solver.get("t0", 0.0))
     t1 = float(solver.get("t1", solver.get("T", 10.0)))
     dt = float(solver.get("dt", 0.01))
-    method = str(solver.get("method", solver.get("solver_method", "RK45")))
+    method = str(solver.get("method", solver.get("solver_method", "DOP853")))
     rtol = float(solver.get("rtol", 1e-4))
-    atol = float(solver.get("atol", 1e-6))
+    atol = float(solver.get("atol", 1e-7))
 
     T_total = float(t1 - t0)
+    # Solver uses fps (samples/sec) internally; convert from dt.
+    # max(1, ...) guards against dt > 1s edge cases.
     fps_eff = max(1, int(round(1.0 / dt))) if dt > 0 else 60
 
     return dict(
@@ -37,13 +78,26 @@ def _parse_solver(cfg: Dict[str, Any]) -> Dict[str, Any]:
     )
 
 
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
+
 def build_system(cfg: Dict[str, Any]) -> Tuple[DynamicalSystem, Dict[str, Any]]:
     """Build (system, build_meta) from a config dict.
 
-    Supported:
-      - model only (open-loop)
-      - model + controller + wrapper='closed_loop_cart'
+    Supported configurations
+    ------------------------
+    - model only → open-loop (plant dynamics, no control force)
+    - model + controller + wrapper='closed_loop_cart' → closed-loop
+
+    Returns
+    -------
+    system : DynamicalSystem
+        Ready to simulate (open or closed loop).
+    build_meta : dict
+        Metadata logged alongside the run (model_name, mode, controller name, …).
     """
+    # --- resolve model name and mode ---
     model_cfg = cfg.get("model") or {}
     model_name = str(model_cfg.get("name", cfg.get("model_name", ""))).strip()
     if not model_name:
@@ -61,8 +115,10 @@ def build_system(cfg: Dict[str, Any]) -> Tuple[DynamicalSystem, Dict[str, Any]]:
         else:
             params.pop("mode", None)
 
+    # Build the plant from registry (aliases + kwargs filtering happen inside factory)
     system = get_model(model_name, mode=mode, **params)
 
+    # --- optional controller + wrapper ---
     controller_cfg = cfg.get("controller") or cfg.get("control") or None
     wrapper_cfg = cfg.get("wrapper") or None
 
@@ -73,24 +129,26 @@ def build_system(cfg: Dict[str, Any]) -> Tuple[DynamicalSystem, Dict[str, Any]]:
         if not ctrl_name:
             raise ValueError("controller.name is required when controller section is present.")
         ctrl_params = dict(controller_cfg.get("params", {}))
-        # Some controllers need the plant instance (e.g., LQR)
+
+        # Some controllers need the plant instance at construction (e.g. AutoLQR linearizes it).
         ctrl_cls = get_controller(ctrl_name)
         try:
             controller = ctrl_cls(system, **ctrl_params)
         except TypeError:
+            # Controller doesn't accept the plant as first arg → pass params only.
             controller = ctrl_cls(**ctrl_params)
 
-        if wrapper_cfg:
-            w_name = str(wrapper_cfg.get("name", "")).strip()
-        else:
-            w_name = "closed_loop_cart"
+        # Default wrapper for cart–pole systems
+        w_name = str(wrapper_cfg.get("name", "")).strip() if wrapper_cfg else "closed_loop_cart"
 
         if w_name == "closed_loop_cart":
+            # Wrap plant + controller so dynamics() handles control input automatically
             system = ClosedLoopCart(system, controller)
             build_meta["controller"] = ctrl_name
             build_meta["wrapper"] = "closed_loop_cart"
         else:
             raise ValueError(f"Unsupported wrapper '{w_name}'.")
+
     return system, build_meta
 
 
@@ -104,14 +162,31 @@ def run_system(
     log_dir: str = "logs",
     bundle_name: Optional[str] = None,
 ) -> Tuple[Dict[str, Any], SimOutput]:
-    """Run integration for an already-constructed system."""
+    """Integrate an already-constructed system.
+
+    Parameters
+    ----------
+    system : DynamicalSystem
+        Open or closed-loop system with a `.dynamics(t, state)` method.
+    x0 : ndarray
+        Initial state vector.
+    cfg : dict, optional
+        Full config dict (used to extract solver settings and for logging).
+    logger : SimulationLogger, optional
+        If provided, logs run metadata to runs.jsonl.
+    save_bundle : bool
+        If True, saves config.json + output.npz to `log_dir`.
+    """
     cfg = dict(cfg or {})
-    solver_kw = _parse_solver(cfg)
+    solver_kw = _parse_solver(cfg)   # extract t0, t1, dt → fps, method, rtol, atol
 
+    # Run numerical integration via scipy.integrate.solve_ivp (wrapped in Solver)
     sol = Solver(system, initial_conditions=np.asarray(x0, dtype=float), **solver_kw).run()
+    # Convert OdeResult → SimOutput TypedDict {T, X, ...}
     out = from_ode_result(sol)
-    ensure_minimum(out)
+    ensure_minimum(out)   # raises if T/X are empty or mismatched
 
+    # Optional: write run metadata to log file
     if logger is not None:
         logger.log_run(
             system=system,
@@ -136,11 +211,19 @@ def run_config(
     log_dir: str = "logs",
     bundle_name: Optional[str] = None,
 ) -> Tuple[Dict[str, Any], SimOutput]:
+    """Build system from config dict and run the full simulation.
+
+    Convenience function that chains build_system() → run_system().
+    The config must contain 'initial_state' (or 'x0') and 'model.name'.
+    """
     system, build_meta = build_system(cfg)
+
+    # Extract initial state; accept both 'initial_state' and legacy 'x0'
     x0 = np.asarray(cfg.get("initial_state", cfg.get("x0", [])), dtype=float)
     if x0.size == 0:
         raise ValueError("Config must include initial_state (or x0).")
 
+    # Embed build metadata (model name, mode, controller) into config for logging
     cfg2 = dict(cfg)
     cfg2.setdefault("meta", {})
     cfg2["meta"] = dict(cfg2["meta"], **build_meta)
@@ -156,10 +239,16 @@ def run_config(
     )
 
 
+# ---------------------------------------------------------------------------
+# Bundle saving (config + arrays → disk)
+# ---------------------------------------------------------------------------
+
 def _save_bundle(*, cfg: Dict[str, Any], out: SimOutput, log_dir: str, name: Optional[str]) -> str:
+    """Save config.json + output.npz to a uniquely-named subdirectory of log_dir."""
     os.makedirs(log_dir, exist_ok=True)
     run_id = name or cfg.get("run_id") or "run"
-    # ensure unique-ish dir
+
+    # Avoid overwriting existing runs by appending _1, _2, …
     run_dir = os.path.join(log_dir, str(run_id))
     i = 0
     base = run_dir
@@ -171,7 +260,7 @@ def _save_bundle(*, cfg: Dict[str, Any], out: SimOutput, log_dir: str, name: Opt
     from pathlib import Path
     Path(run_dir, "config.json").write_text(json.dumps(_to_serializable(cfg), indent=2), encoding="utf-8")
 
-    # save arrays
+    # Save T (time vector) + X (state matrix) + any extra arrays in out
     np.savez_compressed(
         os.path.join(run_dir, "output.npz"),
         T=np.asarray(out["T"]),

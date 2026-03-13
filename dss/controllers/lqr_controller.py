@@ -1,3 +1,24 @@
+# dss/controllers/lqr_controller.py
+"""
+Linear-Quadratic Regulator (LQR) for the inverted pendulum / cart-pole.
+
+Theory summary
+--------------
+LQR minimises the infinite-horizon cost:
+    J = ∫ (xᵀQx + uᵀRu) dt
+
+where x = [cart_pos, cart_vel, pole_angle, pole_ang_vel] and u = cart force.
+
+The optimal feedback gain K is found by solving the continuous algebraic
+Riccati equation (CARE):  AᵀP + PA − PBR⁻¹BᵀP + Q = 0  →  K = R⁻¹BᵀP
+
+Bryson's rule (used here by default) picks diagonal Q / R entries as:
+    Q_ii = 1 / (max_allowed_amplitude_i)²
+    R    = 1 / (max_allowed_force)²
+
+Higher Q weight → smaller allowed amplitude → stronger correction of that state.
+"""
+
 from __future__ import annotations
 
 import numpy as np

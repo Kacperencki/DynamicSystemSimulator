@@ -1,10 +1,19 @@
 # dss/core/solver.py
+"""
+Thin wrapper around scipy.integrate.solve_ivp.
+
+To add a new solver method: just pass method="Radau" (or any scipy method) —
+no code changes needed here.  Supported: RK45, RK23, DOP853, Radau, BDF, LSODA.
+
+Rule of thumb for tolerances:
+  - rtol=1e-4, atol=1e-6  →  fast, good for demos
+  - rtol=1e-6, atol=1e-8  →  high accuracy, slower (use for chaos / long runs)
+"""
 
 import logging
 
 import numpy as np
 import scipy.integrate as integrate
-
 
 
 logger = logging.getLogger(__name__)

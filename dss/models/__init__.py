@@ -1,4 +1,21 @@
 # dss/models/__init__.py
+"""
+Model registry and factory layer.
+
+How to add a new model
+-----------------------
+1. Create dss/models/my_model.py with a class that has .dynamics(t, state).
+2. Import it here.
+3. Add a make_my_model() factory function with any needed aliases.
+4. Register it in MODEL_REGISTRY under a string key.
+5. Use it via: get_model("my_model", mode="...", **kwargs)
+
+Alias dicts (_*_ALIASES)
+-------------------------
+Map short UI/config parameter names → constructor argument names.
+This keeps the UI independent from the model internals.
+Example: UI sends "L" → factory translates to "length" before passing to Pendulum().
+"""
 
 from __future__ import annotations
 

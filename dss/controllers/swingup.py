@@ -1,3 +1,28 @@
+# dss/controllers/swingup.py
+"""
+Energy-based swing-up controller for the inverted pendulum.
+
+Control strategy
+----------------
+The pole is treated as a nonlinear oscillator. The controller pumps energy
+into the system until the total mechanical energy equals the energy at the
+upright equilibrium (E_des = 2·m·g·l_c).
+
+Two operating regions:
+  1. Far from upright  →  energy pumping:
+       u = ke·tanh(ΔE/E_des) · tanh(dir) − kv·ẋ − kx·x
+     where dir = θ̇·cos(θ) indicates whether the pole is moving toward upright.
+  2. Near upright (|θ| < soft_zone)  →  linear stabilisation:
+       u = −kx·x − kv·ẋ − kth·θ − kthd·θ̇
+     This holds the pole until the LQR switcher takes over.
+
+Rate limiter (_rate_limit)
+--------------------------
+Clamps du/dt to du_max to avoid actuator shock on mode switches.
+Safe under adaptive ODE solvers that may call the controller at repeated or
+reversed time steps (those calls are passed through without updating state).
+"""
+
 import numpy as np
 from typing import Optional
 
@@ -25,6 +50,8 @@ class AutoSwingUp:
         soft_zone_deg: float = 8.0,
         soft_kx: Optional[float] = None,
         soft_kv: Optional[float] = None,
+        soft_kth: Optional[float] = None,
+        soft_kthd: Optional[float] = None,
         # shaping parameters
         e_scale: float = 0.6,
         e_dead: float = 0.05,
@@ -39,7 +66,9 @@ class AutoSwingUp:
         M = float(system.M)
         lc = float(getattr(system, "lc", getattr(system, "l", 0.3)))
 
-        self.ke = (3.0 / (m * lc)) if ke is None else float(ke)
+        # Physics-based default: scaled to produce roughly full-force pumping.
+        # 5/(m*lc) ensures ke ≈ F_max for typical parameters.
+        self.ke = (5.0 / (m * lc)) if ke is None else float(ke)
         self.kv = (1.5 * np.sqrt(M + m)) if kv is None else float(kv)
 
         self.F_max = 30.0 if force_limit is None else float(force_limit)
@@ -47,6 +76,14 @@ class AutoSwingUp:
         self.soft_zone = np.deg2rad(float(soft_zone_deg))
         self.soft_kx = (2.0 * (M + m)) if soft_kx is None else float(soft_kx)
         self.soft_kv = (12.0 * np.sqrt(M + m)) if soft_kv is None else float(soft_kv)
+        # Theta feedback in soft zone: restoring force when pole drifts from upright.
+        # Default derived from linearised gravity torque scaled to force units.
+        g = float(getattr(system, "g", 9.81))
+        self.soft_kth = (20.0 * (M + m) * g * lc) if soft_kth is None else float(soft_kth)
+        self.soft_kthd = (5.0 * np.sqrt((M + m) * lc)) if soft_kthd is None else float(soft_kthd)
+
+        # Cache desired energy (constant for fixed plant) to avoid recomputing each step.
+        self._Edes = 2.0 * m * g * lc
 
         self.kx = 0.5
 
@@ -64,10 +101,7 @@ class AutoSwingUp:
     # ------------------------------------------------------------------
 
     def energy_desired(self) -> float:
-        m = float(self.system.m)
-        g = float(self.system.g)
-        lc = float(getattr(self.system, "lc", getattr(self.system, "l", 0.3)))
-        return 2.0 * m * g * lc
+        return self._Edes
 
     def energy(self, state) -> float:
         _, _, th, thd = state
@@ -94,9 +128,16 @@ class AutoSwingUp:
         th_up = wrap_to_pi(float(th))
         thd = float(thd)
 
-        # Region 1: capture near upright
+        # Region 1: capture near upright.
+        # Stabilise both cart (x, x_dot) AND pole (th_up, thd) so the
+        # controller can hold the upright without the LQR switcher.
         if abs(th_up) < self.soft_zone:
-            u_raw = -self.soft_kx * x - self.soft_kv * x_dot
+            u_raw = (
+                -self.soft_kx * x
+                - self.soft_kv * x_dot
+                - self.soft_kth * th_up
+                - self.soft_kthd * thd
+            )
             u_raw = float(np.clip(u_raw, -self.F_max, self.F_max))
             return self._rate_limit(t, u_raw)
 

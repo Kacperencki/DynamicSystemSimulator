@@ -1,3 +1,38 @@
+# dss/models/inverted_pendulum.py
+"""
+Cart-pole (inverted pendulum on a cart) dynamical model.
+
+Equations of motion (Lagrangian derivation, linearised inertia matrix)
+-----------------------------------------------------------------------
+State:  [x, ẋ, θ, θ̇]
+Input:  F  (horizontal cart force, positive = rightward)
+
+The coupled ODEs come from the Lagrangian of the cart-pole system:
+
+  |M+m    m·lc·cosθ| [ẍ  ]   |F + friction_cart + drive_cart − m·lc·sinθ·θ̇²|
+  |m·lc·cosθ    Ip | [θ̈ ] = |m·g·lc·sinθ + friction_pend + drive_pend       |
+
+Solved by Cramer's rule (see _core()):
+  ẍ  = (Ip·F_eff − m·lc·cosθ · τ) / det
+  θ̈  = (−m·lc·cosθ · F_eff + (M+m) · τ) / det
+  det = (M+m)·Ip − (m·lc·cosθ)²
+
+Sign convention:  θ=0 is upright, θ=π is hanging down.
+                  Positive θ tilts the pole to the right.
+
+Coulomb friction smoothing
+--------------------------
+sign(v) is replaced by tanh(coulomb_k·v) to avoid discontinuities that
+can stall adaptive ODE solvers.  Higher coulomb_k → sharper approximation.
+Default 1e3 is sharp enough for typical parameter ranges.
+
+To add a new mode
+-----------------
+1. Add a tuple (use_cart_damp, use_pend_damp, use_cart_drive, use_pend_drive)
+   to _MODE_FLAGS inside dynamics().
+2. Document the mode string in the class docstring.
+"""
+
 import numpy as np
 
 
@@ -142,83 +177,29 @@ class InvertedPendulum:
         else:
             F_ext, T_ext = float(inputs), 0.0
 
-        m = self.mode
+        # (use_cart_damp, use_pend_damp, use_cart_drive, use_pend_drive)
+        _MODE_FLAGS = {
+            "ideal":       (False, False, False, False),
+            "damped_cart": (True,  False, False, False),
+            "damped_pend": (False, True,  False, False),
+            "damped_both": (True,  True,  False, False),
+            "driven":      (True,  True,  True,  True),
+            "dc_driven":   (True,  True,  False, False),
+        }
 
-        if m == "ideal":
-            return self._core(
-                t,
-                state,
-                use_cart_damp=False,
-                use_pend_damp=False,
-                use_cart_drive=False,
-                use_pend_drive=False,
-                F_ext=F_ext,
-                T_ext=T_ext,
-            )
+        flags = _MODE_FLAGS.get(self.mode)
+        if flags is None:
+            raise RuntimeError("Unhandled mode: {!r}".format(self.mode))
 
-        if m == "damped_cart":
-            return self._core(
-                t,
-                state,
-                use_cart_damp=True,
-                use_pend_damp=False,
-                use_cart_drive=False,
-                use_pend_drive=False,
-                F_ext=F_ext,
-                T_ext=T_ext,
-            )
-
-        if m == "damped_pend":
-            return self._core(
-                t,
-                state,
-                use_cart_damp=False,
-                use_pend_damp=True,
-                use_cart_drive=False,
-                use_pend_drive=False,
-                F_ext=F_ext,
-                T_ext=T_ext,
-            )
-
-        if m == "damped_both":
-            return self._core(
-                t,
-                state,
-                use_cart_damp=True,
-                use_pend_damp=True,
-                use_cart_drive=False,
-                use_pend_drive=False,
-                F_ext=F_ext,
-                T_ext=T_ext,
-            )
-
-        if m == "driven":
-            # friction + drives + external inputs
-            return self._core(
-                t,
-                state,
-                use_cart_damp=True,
-                use_pend_damp=True,
-                use_cart_drive=True,
-                use_pend_drive=True,
-                F_ext=F_ext,
-                T_ext=T_ext,
-            )
-
-        if m == "dc_driven":
-            # friction + external inputs (no harmonic drives)
-            return self._core(
-                t,
-                state,
-                use_cart_damp=True,
-                use_pend_damp=True,
-                use_cart_drive=False,
-                use_pend_drive=False,
-                F_ext=F_ext,
-                T_ext=T_ext,
-            )
-
-        raise RuntimeError("Unhandled mode: {!r}".format(m))
+        return self._core(
+            t, state,
+            use_cart_damp=flags[0],
+            use_pend_damp=flags[1],
+            use_cart_drive=flags[2],
+            use_pend_drive=flags[3],
+            F_ext=F_ext,
+            T_ext=T_ext,
+        )
 
     def state_labels(self):
         return ["x [m]", "x_dot [m/s]", "theta [rad]", "theta_dot [rad/s]"]

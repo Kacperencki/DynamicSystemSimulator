@@ -1,3 +1,30 @@
+# dss/controllers/simple_switcher.py
+"""
+Hard-switching supervisor: swing-up ↔ LQR.
+
+State machine
+-------------
+   SWING ──────────────────────────► LQR
+           all engage conditions met
+                                     │
+                                     │  any exit condition exceeded
+                                     ▼
+   SWING ◄──────────────────────────
+           (if allow_dropout=True)
+
+Engage conditions (all must hold simultaneously):
+  |θ| < engage_angle_deg  AND  |θ̇| < engage_speed_rad_s  AND  |ẋ| < engage_cart_speed
+
+Exit conditions (any one triggers dropout):
+  |θ| > dropout_angle_deg  OR  |θ̇| > dropout_speed_rad_s  OR  |ẋ| > dropout_cart_speed
+
+On ENTER LQR: sets lqr.x_ref = current cart position to prevent a sudden
+              cart-centering snap that could destabilise the pole.
+
+Note: blend_time and du_max are accepted for UI/runner compatibility but
+      unused here — this is a hard (instantaneous) switch with no blending.
+"""
+
 import numpy as np
 from typing import Optional
 
