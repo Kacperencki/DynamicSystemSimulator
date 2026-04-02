@@ -263,7 +263,7 @@ class DoublePendulum:
         if isinstance(spec, (int, float)):
             return float(spec)
         if isinstance(spec, str) and "harmonic" in spec and include_harmonic:
-            if A != 0.0 and f != 0.0:
+            if A != 0.0:
                 return A * np.cos(f * t + phi)
         return 0.0
 
