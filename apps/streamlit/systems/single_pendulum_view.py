@@ -95,7 +95,7 @@ def controls(prefix: str) -> Controls:
         ["ideal", "damped", "driven", "dc_driven"],
         index=0,
         key=f"{prefix}_mode",
-        help="ideal: no friction/drive; damped: viscous + Coulomb friction; driven: external sinusoidal torque; dc_driven: constant torque.",
+        help="ideal: gravity only, no energy loss. damped: adds viscous and Coulomb friction at the pivot. driven: sinusoidal torque A·cos(ω·t + φ) plus damping. dc_driven: constant torque A at the pivot plus damping.",
     )
 
     with st.form(key=f"{prefix}_form"):
@@ -104,9 +104,9 @@ def controls(prefix: str) -> Controls:
         with st.expander("Physical parameters", expanded=False):
             r1, r2, r3 = st.columns(3)
             with r1:
-                L = st.number_input("L [m]", value=1.0, min_value=0.0, key=f"{prefix}_L", help="Pendulum length from pivot to bob.")
+                L = st.number_input("L [m]", value=1.0, min_value=0.0, key=f"{prefix}_L", help="Pendulum length from pivot to bob. Determines the natural frequency: ω₀ = √(g/L). Longer pendulum → slower oscillation.")
             with r2:
-                m = st.number_input("m [kg]", value=1.0, min_value=0.0, key=f"{prefix}_m", help="Bob mass.")
+                m = st.number_input("m [kg]", value=1.0, min_value=0.0, key=f"{prefix}_m", help="Bob mass. Does not affect the natural frequency for a point-mass pendulum, but scales the required drive torque.")
             with r3:
                 g = st.number_input("g [m/s²]", value=9.81, key=f"{prefix}_g", help="Gravitational acceleration.")
 
@@ -121,9 +121,9 @@ def controls(prefix: str) -> Controls:
             with st.expander("Damped mode parameters", expanded=False):
                 d1, d2 = st.columns(2)
                 with d1:
-                    b = st.number_input("b [N·m·s]", value=0.02, min_value=0.0, key=f"{prefix}_b", help="Viscous damping coefficient.")
+                    b = st.number_input("b [N·m·s/rad]", value=0.02, min_value=0.0, key=f"{prefix}_b", help="Viscous damping coefficient at the pivot. The pendulum loses energy proportional to angular velocity; higher b → faster settling.")
                 with d2:
-                    fc = st.number_input("Fc [N·m]", value=0.0, min_value=0.0, key=f"{prefix}_fc", help="Coulomb (dry) friction torque.")
+                    fc = st.number_input("Fc [N·m]", value=0.0, min_value=0.0, key=f"{prefix}_fc", help="Coulomb (dry) friction torque at the pivot. The pendulum stops when its kinetic energy falls below this threshold.")
             A, w, phi = 0.0, 0.0, 0.0
 
         elif mode in ("driven", "dc_driven"):
@@ -131,17 +131,17 @@ def controls(prefix: str) -> Controls:
             with st.expander(title, expanded=False):
                 d1, d2 = st.columns(2)
                 with d1:
-                    b = st.number_input("b [N·m·s]", value=0.02, min_value=0.0, key=f"{prefix}_b", help="Viscous damping coefficient.")
+                    b = st.number_input("b [N·m·s/rad]", value=0.02, min_value=0.0, key=f"{prefix}_b", help="Viscous damping coefficient at the pivot. The pendulum loses energy proportional to angular velocity; higher b → faster settling.")
                 with d2:
-                    fc = st.number_input("Fc [N·m]", value=0.0, min_value=0.0, key=f"{prefix}_fc", help="Coulomb (dry) friction torque.")
+                    fc = st.number_input("Fc [N·m]", value=0.0, min_value=0.0, key=f"{prefix}_fc", help="Coulomb (dry) friction torque at the pivot. The pendulum stops when its kinetic energy falls below this threshold.")
 
                 p1, p2, p3 = st.columns(3)
                 with p1:
-                    A = st.number_input("A [N·m]", value=0.2, min_value=0.0, key=f"{prefix}_A", help="Amplitude of the driving torque.")
+                    A = st.number_input("A [N·m]", value=0.2, min_value=0.0, key=f"{prefix}_A", help="Drive torque amplitude. Torque = A·cos(ω·t + φ). In dc_driven mode this is the constant torque applied.")
                 with p2:
-                    w = st.number_input("ω [rad/s]", value=2.0, min_value=0.0, key=f"{prefix}_w", help="Angular frequency of the driving torque.")
+                    w = st.number_input("ω [rad/s]", value=2.0, min_value=0.0, key=f"{prefix}_w", help="Drive angular frequency. Resonance occurs near the natural frequency ω₀ = √(g/L). In dc_driven mode this field is ignored.")
                 with p3:
-                    phi = st.number_input("φ [rad]", value=0.0, key=f"{prefix}_phi", help="Phase offset of the driving torque.")
+                    phi = st.number_input("φ [rad]", value=0.0, key=f"{prefix}_phi", help="Drive phase offset. Shifts the torque waveform in time. In dc_driven mode this field is ignored.")
 
             if mode == "dc_driven":
                 w, phi = 0.0, 0.0

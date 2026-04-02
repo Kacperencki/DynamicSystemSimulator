@@ -152,8 +152,8 @@ def controls(prefix: str) -> Controls:
             max_frames=SliderSpec("Max frames", 200, 1400, 600, 20),
             max_plot_pts=SliderSpec("Plot points (downsample)", 600, 20000, 4000, 200),
             trail_default=False,
-            trail_checkbox_label="Show tail",
-            trail_max_points=SliderSpec("Tail max points", 50, 600, 200, 10),
+            trail_checkbox_label="Show trail",
+            trail_max_points=SliderSpec("Trail max points", 50, 600, 200, 10),
         )
 
         save_run, log_dir, run_name = logging_settings(prefix, expanded=False)

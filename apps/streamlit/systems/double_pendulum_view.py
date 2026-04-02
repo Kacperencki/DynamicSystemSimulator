@@ -92,7 +92,7 @@ def controls(prefix: str) -> Controls:
         ["ideal", "damped", "driven"],
         index=0,
         key=f"{prefix}_mode",
-        help="ideal: no friction/drive; damped: viscous + Coulomb friction at both joints; driven: external sinusoidal torques.",
+        help="ideal: gravity and coupling only, no energy loss. damped: adds viscous and Coulomb friction at both joints. driven: sinusoidal torques A·cos(ω·t + φ) at each joint plus damping; set ω=0 for constant torque.",
     )
 
     with st.form(key=f"{prefix}_form"):
@@ -101,11 +101,11 @@ def controls(prefix: str) -> Controls:
         with st.expander("Physical parameters", expanded=False):
             r1, r2, r3 = st.columns(3)
             with r1:
-                l1 = st.number_input("l₁ [m]", value=1.0, min_value=0.0, key=f"{prefix}_l1", help="Length of link 1 (upper arm).")
-                m1 = st.number_input("m₁ [kg]", value=1.0, min_value=0.0, key=f"{prefix}_m1", help="Mass of bob 1.")
+                l1 = st.number_input("l₁ [m]", value=1.0, min_value=0.0, key=f"{prefix}_l1", help="Length of the upper arm. Longer upper arm increases the period of oscillation and amplifies the chaotic coupling to the lower arm.")
+                m1 = st.number_input("m₁ [kg]", value=1.0, min_value=0.0, key=f"{prefix}_m1", help="Mass of the upper bob. Heavier upper bob dominates the dynamics and reduces the influence of the lower arm.")
             with r2:
-                l2 = st.number_input("l₂ [m]", value=1.0, min_value=0.0, key=f"{prefix}_l2", help="Length of link 2 (lower arm).")
-                m2 = st.number_input("m₂ [kg]", value=1.0, min_value=0.0, key=f"{prefix}_m2", help="Mass of bob 2.")
+                l2 = st.number_input("l₂ [m]", value=1.0, min_value=0.0, key=f"{prefix}_l2", help="Length of the lower arm. Longer lower arm increases sensitivity to initial conditions and promotes chaotic motion.")
+                m2 = st.number_input("m₂ [kg]", value=1.0, min_value=0.0, key=f"{prefix}_m2", help="Mass of the lower bob. A lighter lower bob (m₂ ≪ m₁) behaves like a simple pendulum; similar masses produce stronger chaotic coupling.")
             with r3:
                 g = st.number_input("g [m/s²]", value=9.81, key=f"{prefix}_g", help="Gravitational acceleration.")
 
@@ -124,24 +124,24 @@ def controls(prefix: str) -> Controls:
             with st.expander("Damping / friction", expanded=False):
                 c1, c2 = st.columns(2)
                 with c1:
-                    b1 = st.number_input("b₁ [N·m·s]", value=0.02, min_value=0.0, key=f"{prefix}_b1", help="Viscous damping at joint 1.")
-                    fc1 = st.number_input("Fc₁ [N·m]", value=0.0, min_value=0.0, key=f"{prefix}_fc1", help="Coulomb friction torque at joint 1.")
+                    b1 = st.number_input("b₁ [N·m·s/rad]", value=0.02, min_value=0.0, key=f"{prefix}_b1", help="Viscous damping at joint 1 (upper pivot). Damps upper arm velocity; higher values suppress large swings faster.")
+                    fc1 = st.number_input("Fc₁ [N·m]", value=0.0, min_value=0.0, key=f"{prefix}_fc1", help="Coulomb (dry) friction torque at joint 1. The arm locks when torque falls below this threshold.")
                 with c2:
-                    b2 = st.number_input("b₂ [N·m·s]", value=0.02, min_value=0.0, key=f"{prefix}_b2", help="Viscous damping at joint 2.")
-                    fc2 = st.number_input("Fc₂ [N·m]", value=0.0, min_value=0.0, key=f"{prefix}_fc2", help="Coulomb friction torque at joint 2.")
+                    b2 = st.number_input("b₂ [N·m·s/rad]", value=0.02, min_value=0.0, key=f"{prefix}_b2", help="Viscous damping at joint 2 (lower pivot). Damps lower arm velocity; particularly effective at suppressing high-frequency oscillations.")
+                    fc2 = st.number_input("Fc₂ [N·m]", value=0.0, min_value=0.0, key=f"{prefix}_fc2", help="Coulomb (dry) friction torque at joint 2. The lower arm locks when its torque falls below this threshold.")
 
         if mode == "driven":
             with st.expander("Drive parameters", expanded=False):
                 p1, p2, p3 = st.columns(3)
                 with p1:
-                    A1 = st.number_input("A₁ [N·m]", value=0.0, min_value=0.0, key=f"{prefix}_A1", help="Drive torque amplitude for link 1.")
-                    A2 = st.number_input("A₂ [N·m]", value=0.0, min_value=0.0, key=f"{prefix}_A2", help="Drive torque amplitude for link 2.")
+                    A1 = st.number_input("A₁ [N·m]", value=0.0, min_value=0.0, key=f"{prefix}_A1", help="Drive torque amplitude for link 1. Torque = A·cos(ω·t + φ). Set ω=0 for a constant torque of A·cos(φ).")
+                    A2 = st.number_input("A₂ [N·m]", value=0.0, min_value=0.0, key=f"{prefix}_A2", help="Drive torque amplitude for link 2. Torque = A·cos(ω·t + φ). Set ω=0 for a constant torque of A·cos(φ).")
                 with p2:
-                    w1 = st.number_input("ω₁ [rad/s]", value=0.0, min_value=0.0, key=f"{prefix}_w1", help="Drive angular frequency for link 1.")
-                    w2 = st.number_input("ω₂ [rad/s]", value=0.0, min_value=0.0, key=f"{prefix}_w2", help="Drive angular frequency for link 2.")
+                    w1 = st.number_input("ω₁ [rad/s]", value=0.0, min_value=0.0, key=f"{prefix}_w1", help="Drive angular frequency for link 1. Set to 0 for constant torque.")
+                    w2 = st.number_input("ω₂ [rad/s]", value=0.0, min_value=0.0, key=f"{prefix}_w2", help="Drive angular frequency for link 2. Set to 0 for constant torque.")
                 with p3:
-                    phi1 = st.number_input("φ₁ [rad]", value=0.0, key=f"{prefix}_phi1", help="Drive phase offset for link 1.")
-                    phi2 = st.number_input("φ₂ [rad]", value=0.0, key=f"{prefix}_phi2", help="Drive phase offset for link 2.")
+                    phi1 = st.number_input("φ₁ [rad]", value=0.0, key=f"{prefix}_phi1", help="Drive phase offset for link 1. When ω=0: torque = A·cos(φ), so φ=0 → +A, φ=π → −A.")
+                    phi2 = st.number_input("φ₂ [rad]", value=0.0, key=f"{prefix}_phi2", help="Drive phase offset for link 2. When ω=0: torque = A·cos(φ), so φ=0 → +A, φ=π → −A.")
         else:
             A1 = A2 = w1 = w2 = phi1 = phi2 = 0.0
 
