@@ -35,18 +35,40 @@ PRESETS: Dict[str, Dict[str, Any]] = {
     "Default": dict(
         L=1.0, C=1.0, mu=2.0,
         v0=1.0, iL0=0.0,
-        t0=0.0, t1=30.0, dt=0.01,
-        solver_method="RK45", rtol=1e-4, atol=1e-6,
-        fps_anim=30, max_frames=600, max_plot_pts=4000,
-        trail_on=True, trail_max_points=260,
+        t0=0.0, t1=20.0, dt=0.01,
+        solver_method="RK45", rtol=1e-4, atol=1e-7,
+        fps_anim=30, max_frames=400, max_plot_pts=2500,
+        trail_on=True, trail_max_points=220,
     ),
     "Relaxation oscillation": dict(
         L=1.0, C=1.0, mu=8.0,
         v0=0.2, iL0=0.0,
-        t0=0.0, t1=60.0, dt=0.01,
-        solver_method="Radau", rtol=1e-5, atol=1e-7,
-        fps_anim=30, max_frames=800, max_plot_pts=6000,
-        trail_on=True, trail_max_points=300,
+        t0=0.0, t1=40.0, dt=0.01,
+        solver_method="Radau", rtol=1e-4, atol=1e-7,
+        fps_anim=30, max_frames=400, max_plot_pts=3000,
+        trail_on=True, trail_max_points=240,
+    ),
+    "Slow limit-cycle approach": dict(
+        # μ=0.3: oscillator is still nearly harmonic but amplitude drifts noticeably
+        # outward from v0=0.3 toward the limit cycle (~2 V) over ~80 s (≈3 time constants).
+        # Longer than usual by necessity — weak nonlinearity simply takes time to act.
+        L=1.0, C=1.0, mu=0.3,
+        v0=0.3, iL0=0.0,
+        t0=0.0, t1=80.0, dt=0.05,
+        solver_method="RK45", rtol=1e-4, atol=1e-7,
+        fps_anim=30, max_frames=400, max_plot_pts=2500,
+        trail_on=True, trail_max_points=260,
+    ),
+    "Amplitude collapse": dict(
+        # Start at v0=4.5 V, well outside the limit cycle (~2 V amplitude).
+        # The nonlinear damping is large for |v|>1, so the envelope decays quickly
+        # until the trajectory locks onto the attractor from the outside.
+        L=1.0, C=1.0, mu=2.0,
+        v0=4.5, iL0=0.0,
+        t0=0.0, t1=20.0, dt=0.01,
+        solver_method="RK45", rtol=1e-4, atol=1e-7,
+        fps_anim=30, max_frames=400, max_plot_pts=2500,
+        trail_on=True, trail_max_points=240,
     ),
 }
 

@@ -35,25 +35,47 @@ PRESETS: Dict[str, Dict[str, Any]] = {
     "Classic attractor": dict(
         sigma=10.0, rho=28.0, beta=8.0 / 3.0,
         x0=1.0, y0=0.0, z0=0.0,
-        t0=0.0, t1=40.0, dt=0.005,
-        solver_method="DOP853", rtol=1e-6, atol=1e-8,
-        fps_anim=30, max_frames=700, max_plot_pts=8000,
-        trail_on=True, trail_max_points=320,
+        t0=0.0, t1=25.0, dt=0.005,
+        solver_method="RK45", rtol=1e-4, atol=1e-7,
+        fps_anim=30, max_frames=500, max_plot_pts=4000,
+        trail_on=True, trail_max_points=280,
     ),
     "Sensitive to IC": dict(
         sigma=10.0, rho=28.0, beta=8.0 / 3.0,
         x0=1.001, y0=0.0, z0=0.0,
-        t0=0.0, t1=40.0, dt=0.005,
-        solver_method="DOP853", rtol=1e-6, atol=1e-8,
-        fps_anim=30, max_frames=700, max_plot_pts=8000,
-        trail_on=True, trail_max_points=320,
+        t0=0.0, t1=25.0, dt=0.005,
+        solver_method="RK45", rtol=1e-4, atol=1e-7,
+        fps_anim=30, max_frames=500, max_plot_pts=4000,
+        trail_on=True, trail_max_points=280,
     ),
     "Near-periodic (rho=99.96)": dict(
         sigma=10.0, rho=99.96, beta=8.0 / 3.0,
         x0=0.1, y0=0.0, z0=0.0,
         t0=0.0, t1=20.0, dt=0.005,
-        solver_method="DOP853", rtol=1e-6, atol=1e-8,
-        fps_anim=30, max_frames=500, max_plot_pts=5000,
+        solver_method="RK45", rtol=1e-4, atol=1e-7,
+        fps_anim=30, max_frames=400, max_plot_pts=3000,
+        trail_on=True, trail_max_points=240,
+    ),
+    "Fixed-point settling (rho=20)": dict(
+        # rho=20 is below the chaos onset (≈24.74): both fixed points C± are stable.
+        # The trajectory spirals inward and locks onto one of them — the attractor is
+        # a point, not a strange set.
+        sigma=10.0, rho=20.0, beta=8.0 / 3.0,
+        x0=1.0, y0=0.0, z0=0.0,
+        t0=0.0, t1=20.0, dt=0.005,
+        solver_method="RK45", rtol=1e-4, atol=1e-7,
+        fps_anim=30, max_frames=400, max_plot_pts=3000,
+        trail_on=True, trail_max_points=260,
+    ),
+    "Chaos onset (rho=24.4)": dict(
+        # Just below the subcritical Hopf bifurcation at rho≈24.74. The trajectory
+        # wanders in a long chaotic-looking transient before eventually collapsing
+        # to a fixed point — a striking contrast with rho=28.
+        sigma=10.0, rho=24.4, beta=8.0 / 3.0,
+        x0=1.0, y0=0.0, z0=0.0,
+        t0=0.0, t1=30.0, dt=0.005,
+        solver_method="RK45", rtol=1e-4, atol=1e-7,
+        fps_anim=30, max_frames=500, max_plot_pts=4000,
         trail_on=True, trail_max_points=280,
     ),
 }

@@ -245,6 +245,7 @@ def make_inverted_pendulum_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> 
     fig.update_layout(
         height=740,
         margin=dict(l=10, r=10, t=50, b=10),
+        font=dict(size=10),
         showlegend=False,
     )
 

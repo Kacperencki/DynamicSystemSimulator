@@ -45,8 +45,8 @@ PRESETS: Dict[str, Dict[str, Any]] = {
         A=0.0, w=0.0, phi=0.0,
         theta0=float(np.deg2rad(60.0)), omega0=0.0,
         t0=0.0, t1=10.0, dt=0.01,
-        solver_method="RK45", rtol=1e-4, atol=1e-6,
-        fps_anim=30, max_frames=360, max_plot_pts=2000,
+        solver_method="RK45", rtol=1e-4, atol=1e-7,
+        fps_anim=30, max_frames=300, max_plot_pts=1500,
         trail_on=False, trail_max_points=180,
     ),
     "Damped decay": dict(
@@ -56,8 +56,8 @@ PRESETS: Dict[str, Dict[str, Any]] = {
         A=0.0, w=0.0, phi=0.0,
         theta0=float(np.deg2rad(90.0)), omega0=0.0,
         t0=0.0, t1=15.0, dt=0.01,
-        solver_method="Radau", rtol=1e-5, atol=1e-7,
-        fps_anim=30, max_frames=400, max_plot_pts=2500,
+        solver_method="Radau", rtol=1e-4, atol=1e-7,
+        fps_anim=30, max_frames=360, max_plot_pts=2000,
         trail_on=False, trail_max_points=180,
     ),
     "Resonant drive": dict(
@@ -66,10 +66,10 @@ PRESETS: Dict[str, Dict[str, Any]] = {
         b=0.05, fc=0.0,
         A=0.5, w=3.13, phi=0.0,
         theta0=0.1, omega0=0.0,
-        t0=0.0, t1=25.0, dt=0.01,
-        solver_method="RK45", rtol=1e-4, atol=1e-6,
-        fps_anim=30, max_frames=560, max_plot_pts=3500,
-        trail_on=True, trail_max_points=260,
+        t0=0.0, t1=20.0, dt=0.01,
+        solver_method="RK45", rtol=1e-4, atol=1e-7,
+        fps_anim=30, max_frames=400, max_plot_pts=2500,
+        trail_on=True, trail_max_points=220,
     ),
     "Chaotic drive": dict(
         mode="driven",
@@ -77,10 +77,50 @@ PRESETS: Dict[str, Dict[str, Any]] = {
         b=0.05, fc=0.0,
         A=1.15, w=2.0, phi=0.0,
         theta0=0.2, omega0=0.0,
-        t0=0.0, t1=40.0, dt=0.005,
-        solver_method="DOP853", rtol=1e-6, atol=1e-8,
-        fps_anim=30, max_frames=700, max_plot_pts=6000,
-        trail_on=True, trail_max_points=300,
+        t0=0.0, t1=25.0, dt=0.01,
+        solver_method="RK45", rtol=1e-4, atol=1e-7,
+        fps_anim=30, max_frames=500, max_plot_pts=2500,
+        trail_on=True, trail_max_points=260,
+    ),
+    "Continuous rotation": dict(
+        # omega0 = 7.5 rad/s exceeds the separatrix threshold sqrt(4g/L) ≈ 6.26 rad/s,
+        # so the bob whirls over the top without ever reversing direction.
+        mode="ideal",
+        L=1.0, m=1.0, g=9.81,
+        b=0.0, fc=0.0,
+        A=0.0, w=0.0, phi=0.0,
+        theta0=0.0, omega0=7.5,
+        t0=0.0, t1=10.0, dt=0.01,
+        solver_method="RK45", rtol=1e-4, atol=1e-7,
+        fps_anim=30, max_frames=300, max_plot_pts=1500,
+        trail_on=True, trail_max_points=200,
+    ),
+    "Slow-fast near top": dict(
+        # Released from rest 0.08 rad below the upright unstable equilibrium.
+        # Energy is ~99.8 % of the separatrix value: the bob creeps through the top
+        # and whips fast through the bottom — period is many times the small-angle value.
+        mode="ideal",
+        L=1.0, m=1.0, g=9.81,
+        b=0.0, fc=0.0,
+        A=0.0, w=0.0, phi=0.0,
+        theta0=float(np.pi - 0.08), omega0=0.0,
+        t0=0.0, t1=20.0, dt=0.01,
+        solver_method="RK45", rtol=1e-4, atol=1e-7,
+        fps_anim=30, max_frames=400, max_plot_pts=2000,
+        trail_on=True, trail_max_points=220,
+    ),
+    "Dry-friction freeze": dict(
+        # Coulomb friction (fc=0.55 N·m) is large enough that the bob loses all kinetic
+        # energy before reaching the bottom and freezes mid-swing — stiction in action.
+        mode="damped",
+        L=1.0, m=1.0, g=9.81,
+        b=0.02, fc=0.55,
+        A=0.0, w=0.0, phi=0.0,
+        theta0=float(np.deg2rad(80.0)), omega0=0.0,
+        t0=0.0, t1=8.0, dt=0.01,
+        solver_method="Radau", rtol=1e-4, atol=1e-7,
+        fps_anim=30, max_frames=300, max_plot_pts=1500,
+        trail_on=True, trail_max_points=180,
     ),
 }
 

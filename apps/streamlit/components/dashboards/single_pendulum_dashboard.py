@@ -54,8 +54,8 @@ def make_single_pendulum_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go
         rows=3, cols=2,
         specs=[[{"rowspan": 3}, {}], [None, {}], [None, {}]],
         column_widths=[0.64, 0.36],
-        vertical_spacing=0.18,
-        horizontal_spacing=0.06,
+        vertical_spacing=0.12,
+        horizontal_spacing=0.05,
         subplot_titles=("", "", "", ""),
     )
 
@@ -128,7 +128,7 @@ def make_single_pendulum_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go
     fig.update_layout(
         height=540,
         margin=dict(l=6, r=6, t=36, b=6),
-        font=dict(size=11),
+        font=dict(size=10),
         showlegend=False,
         hovermode=False,
     )

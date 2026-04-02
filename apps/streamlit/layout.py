@@ -140,8 +140,18 @@ def render_system(
     # ------------------------------------------------------------------
     cfg_key = f"{prefix}_cfg"
     out_key = f"{prefix}_out"
+    # Cached Plotly figures (dashboard and fallback) survive reruns that don't
+    # change the simulation output or the visualisation-relevant settings.
+    fig_key = f"{prefix}_fig"
+    fig_anim_key = f"{prefix}_fig_anim"
+    fig_plots_key = f"{prefix}_fig_plots"
+    fig_hash_key = f"{prefix}_fig_hash"
     st.session_state.setdefault(cfg_key, None)
     st.session_state.setdefault(out_key, None)
+    st.session_state.setdefault(fig_key, None)
+    st.session_state.setdefault(fig_anim_key, None)
+    st.session_state.setdefault(fig_plots_key, None)
+    st.session_state.setdefault(fig_hash_key, None)
 
     # ------------------------------------------------------------------
     # 3. Run simulation when the user clicks "Run"
@@ -150,6 +160,11 @@ def render_system(
         cfg, out = spec.run(controls)
         st.session_state[cfg_key] = cfg
         st.session_state[out_key] = out
+        # Invalidate cached figures so they are rebuilt from the new results.
+        st.session_state[fig_key] = None
+        st.session_state[fig_anim_key] = None
+        st.session_state[fig_plots_key] = None
+        st.session_state[fig_hash_key] = None
 
     cfg = st.session_state[cfg_key]
     out = st.session_state[out_key]
@@ -166,10 +181,17 @@ def render_system(
         if spec.caption is not None:
             st.caption(spec.caption(cfg, out))
 
+        # Visualisation settings that actually affect how the figure looks.
+        # Any change here (but not to physics params) triggers a figure rebuild.
+        _VIZ_KEYS = {"fps_anim", "max_frames", "max_plot_pts", "trail_on", "trail_max_points"}
+        viz_hash = hash(str(sorted((k, controls.get(k)) for k in _VIZ_KEYS)))
+
         # --- Dashboard mode (preferred): single Plotly figure with frames ---
         if spec.make_dashboard is not None:
-            fig = spec.make_dashboard(cfg, out, controls)
-            st.plotly_chart(fig, width='stretch', config={"displayModeBar": False})
+            if st.session_state[fig_key] is None or st.session_state[fig_hash_key] != viz_hash:
+                st.session_state[fig_key] = spec.make_dashboard(cfg, out, controls)
+                st.session_state[fig_hash_key] = viz_hash
+            st.plotly_chart(st.session_state[fig_key], width='stretch', config={"displayModeBar": False})
             return
 
         # --- Fallback mode: animation left, plot stack right ---
@@ -177,12 +199,21 @@ def render_system(
 
         if spec.make_animation is not None:
             with col_anim:
-                fig_anim = spec.make_animation(cfg, out, controls)
-                st.plotly_chart(fig_anim, width='stretch', config={"displayModeBar": False})
+                if st.session_state[fig_anim_key] is None or st.session_state[fig_hash_key] != viz_hash:
+                    st.session_state[fig_anim_key] = spec.make_animation(cfg, out, controls)
+                    st.session_state[fig_hash_key] = viz_hash
+                st.plotly_chart(st.session_state[fig_anim_key], width='stretch', config={"displayModeBar": False})
 
         with col_plots:
-            for p in spec.plots:
-                st.markdown(f"**{p.title}**")
-                figp = p.make_fig(cfg, out, controls)
-                figp.update_layout(height=p.height, margin=dict(l=8, r=8, t=25, b=8))
+            cached_plots = st.session_state[fig_plots_key]
+            if cached_plots is None or st.session_state[fig_hash_key] != viz_hash:
+                cached_plots = []
+                for p in spec.plots:
+                    figp = p.make_fig(cfg, out, controls)
+                    figp.update_layout(height=p.height, margin=dict(l=8, r=8, t=25, b=8))
+                    cached_plots.append((p.title, figp))
+                st.session_state[fig_plots_key] = cached_plots
+                st.session_state[fig_hash_key] = viz_hash
+            for title, figp in cached_plots:
+                st.markdown(f"**{title}**")
                 st.plotly_chart(figp, width='stretch', config={"displayModeBar": False})

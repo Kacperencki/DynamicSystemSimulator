@@ -40,8 +40,8 @@ PRESETS: Dict[str, Dict[str, Any]] = {
         load_mode="none", tau_load=0.0, b_load=0.0, tau_c=0.0, omega_eps=0.5,
         i0=0.0, omega0=0.0,
         t0=0.0, t1=0.6, dt=0.001,
-        solver_method="RK45", rtol=1e-4, atol=1e-6,
-        fps_anim=30, max_frames=600, max_plot_pts=3000,
+        solver_method="RK45", rtol=1e-4, atol=1e-7,
+        fps_anim=30, max_frames=400, max_plot_pts=2500,
         trail_on=False, trail_max_points=180,
     ),
     "Sine input": dict(
@@ -50,8 +50,34 @@ PRESETS: Dict[str, Dict[str, Any]] = {
         load_mode="viscous", tau_load=0.0, b_load=2e-3, tau_c=0.0, omega_eps=0.5,
         i0=0.0, omega0=0.0,
         t0=0.0, t1=1.2, dt=0.001,
-        solver_method="RK45", rtol=1e-4, atol=1e-6,
-        fps_anim=30, max_frames=700, max_plot_pts=5000,
+        solver_method="RK45", rtol=1e-4, atol=1e-7,
+        fps_anim=30, max_frames=400, max_plot_pts=3000,
+        trail_on=False, trail_max_points=180,
+    ),
+    "Coulomb stall then start": dict(
+        # Voltage ramps 0→8 V over 0.4 s (20 V/s). Coulomb load tau_c=0.15 N·m keeps
+        # the shaft stalled while stall torque Kt·(V/R) < 0.15 N·m (V < 3 V, t < 0.15 s).
+        # Once threshold is crossed the motor breaks away — visible kink in current & speed.
+        R=2.0, L=1e-3, Ke=0.1, Kt=0.1, J=1e-3, bm=1e-4,
+        v_mode="ramp", V0=8.0, v_offset=0.0, t_step=0.4, v_freq=2.0, v_duty=0.5,
+        load_mode="coulomb", tau_load=0.0, b_load=0.0, tau_c=0.15, omega_eps=0.5,
+        i0=0.0, omega0=0.0,
+        t0=0.0, t1=0.8, dt=0.001,
+        solver_method="Radau", rtol=1e-4, atol=1e-7,
+        fps_anim=30, max_frames=400, max_plot_pts=2000,
+        trail_on=False, trail_max_points=180,
+    ),
+    "PWM speed control": dict(
+        # 50 Hz square wave at 12 V, 70 % duty cycle — a typical brushed-DC PWM drive.
+        # Armature inductance smooths the current ripple so speed stays nearly constant
+        # even though voltage switches hard every 10 ms.
+        R=2.0, L=1e-3, Ke=0.1, Kt=0.1, J=1e-3, bm=1e-4,
+        v_mode="square", V0=12.0, v_offset=0.0, t_step=0.05, v_freq=50.0, v_duty=0.7,
+        load_mode="viscous", tau_load=0.0, b_load=8e-4, tau_c=0.0, omega_eps=0.5,
+        i0=0.0, omega0=0.0,
+        t0=0.0, t1=0.3, dt=0.0005,
+        solver_method="RK45", rtol=1e-4, atol=1e-7,
+        fps_anim=30, max_frames=400, max_plot_pts=3000,
         trail_on=False, trail_max_points=180,
     ),
 }

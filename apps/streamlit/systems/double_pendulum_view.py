@@ -47,8 +47,8 @@ PRESETS: Dict[str, Dict[str, Any]] = {
         th1_0=float(np.pi / 2), w1_0=0.0,
         th2_0=float(np.pi / 2), w2_0=0.0,
         t0=0.0, t1=12.0, dt=0.01,
-        solver_method="RK45", rtol=1e-4, atol=1e-6,
-        fps_anim=30, max_frames=360, max_plot_pts=2500,
+        solver_method="RK45", rtol=1e-4, atol=1e-7,
+        fps_anim=30, max_frames=360, max_plot_pts=2000,
         trail_on=False, trail_max_points=180,
     ),
     "Chaotic (ideal)": dict(
@@ -62,9 +62,9 @@ PRESETS: Dict[str, Dict[str, Any]] = {
         th1_0=float(0.9 * np.pi), w1_0=0.0,
         th2_0=float(0.95 * np.pi), w2_0=0.0,
         t0=0.0, t1=20.0, dt=0.01,
-        solver_method="RK45", rtol=1e-5, atol=1e-7,
-        fps_anim=30, max_frames=520, max_plot_pts=4000,
-        trail_on=True, trail_max_points=240,
+        solver_method="RK45", rtol=1e-4, atol=1e-7,
+        fps_anim=30, max_frames=400, max_plot_pts=2500,
+        trail_on=True, trail_max_points=220,
     ),
     "Damped": dict(
         mode="damped",
@@ -77,9 +77,44 @@ PRESETS: Dict[str, Dict[str, Any]] = {
         th1_0=float(np.pi / 2), w1_0=0.0,
         th2_0=float(np.pi / 2), w2_0=0.0,
         t0=0.0, t1=14.0, dt=0.01,
-        solver_method="Radau", rtol=1e-5, atol=1e-7,
-        fps_anim=30, max_frames=420, max_plot_pts=3000,
+        solver_method="Radau", rtol=1e-4, atol=1e-7,
+        fps_anim=30, max_frames=360, max_plot_pts=2000,
         trail_on=False, trail_max_points=180,
+    ),
+    "Inner arm spinning": dict(
+        # Upper arm starts at 60° from vertical (rest); lower arm is given w2_0=8 rad/s —
+        # enough kinetic energy to whirl over the top repeatedly while the upper arm oscillates.
+        mode="ideal",
+        l1=1.0, m1=1.0,
+        l2=1.0, m2=1.0,
+        g=9.81,
+        b1=0.0, b2=0.0, fc1=0.0, fc2=0.0,
+        A1=0.0, w1=0.0, phi1=0.0,
+        A2=0.0, w2=0.0, phi2=0.0,
+        th1_0=float(np.pi / 3), w1_0=0.0,
+        th2_0=0.0, w2_0=8.0,
+        t0=0.0, t1=12.0, dt=0.01,
+        solver_method="RK45", rtol=1e-4, atol=1e-7,
+        fps_anim=30, max_frames=360, max_plot_pts=2000,
+        trail_on=True, trail_max_points=220,
+    ),
+    "Both arms upright": dict(
+        # Both arms start 1–3 % below the upright position with a tiny asymmetry.
+        # The doubly-unstable IC amplifies any perturbation instantly: motion diverges
+        # into rich chaotic trajectories within the first few seconds.
+        mode="ideal",
+        l1=1.0, m1=1.0,
+        l2=1.0, m2=1.0,
+        g=9.81,
+        b1=0.0, b2=0.0, fc1=0.0, fc2=0.0,
+        A1=0.0, w1=0.0, phi1=0.0,
+        A2=0.0, w2=0.0, phi2=0.0,
+        th1_0=float(0.99 * np.pi), w1_0=0.0,
+        th2_0=float(0.97 * np.pi), w2_0=0.0,
+        t0=0.0, t1=15.0, dt=0.01,
+        solver_method="RK45", rtol=1e-4, atol=1e-7,
+        fps_anim=30, max_frames=420, max_plot_pts=2500,
+        trail_on=True, trail_max_points=240,
     ),
 }
 

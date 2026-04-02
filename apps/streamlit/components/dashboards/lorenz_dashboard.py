@@ -121,7 +121,7 @@ def make_lorenz_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go.Figure:
         ),
         height=660,
         margin=dict(l=6, r=6, t=58, b=8),
-        font=dict(size=11),
+        font=dict(size=10),
         showlegend=False,
         hovermode=False,
     )
