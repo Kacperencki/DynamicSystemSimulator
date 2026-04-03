@@ -157,7 +157,8 @@ def render_system(
     # 3. Run simulation when the user clicks "Run"
     # ------------------------------------------------------------------
     if run_clicked:
-        cfg, out = spec.run(controls)
+        with st.spinner("Running simulation..."):
+            cfg, out = spec.run(controls)
         st.session_state[cfg_key] = cfg
         st.session_state[out_key] = out
         # Invalidate cached figures so they are rebuilt from the new results.
@@ -183,7 +184,7 @@ def render_system(
 
         # Visualisation settings that actually affect how the figure looks.
         # Any change here (but not to physics params) triggers a figure rebuild.
-        _VIZ_KEYS = {"fps_anim", "max_frames", "max_plot_pts", "trail_on", "trail_max_points"}
+        _VIZ_KEYS = {"fps_anim", "max_frames", "max_plot_pts", "trail_on", "trail_max_points", "live_plots"}
         viz_hash = hash(str(sorted((k, controls.get(k)) for k in _VIZ_KEYS)))
 
         # --- Dashboard mode (preferred): single Plotly figure with frames ---

@@ -47,7 +47,7 @@ PRESETS: Dict[str, Dict[str, Any]] = {
         t0=0.0, t1=10.0, dt=0.01,
         solver_method="RK45", rtol=1e-4, atol=1e-7,
         fps_anim=30, max_frames=300, max_plot_pts=1500,
-        trail_on=False, trail_max_points=180,
+        trail_on=False, trail_max_points=300, live_plots=False,
     ),
     "Damped decay": dict(
         mode="damped",
@@ -58,7 +58,7 @@ PRESETS: Dict[str, Dict[str, Any]] = {
         t0=0.0, t1=15.0, dt=0.01,
         solver_method="Radau", rtol=1e-4, atol=1e-7,
         fps_anim=30, max_frames=360, max_plot_pts=2000,
-        trail_on=False, trail_max_points=180,
+        trail_on=False, trail_max_points=300, live_plots=False,
     ),
     "Resonant drive": dict(
         mode="driven",
@@ -69,7 +69,7 @@ PRESETS: Dict[str, Dict[str, Any]] = {
         t0=0.0, t1=20.0, dt=0.01,
         solver_method="RK45", rtol=1e-4, atol=1e-7,
         fps_anim=30, max_frames=400, max_plot_pts=2500,
-        trail_on=True, trail_max_points=220,
+        trail_on=True, trail_max_points=360, live_plots=False,
     ),
     "Chaotic drive": dict(
         mode="driven",
@@ -80,7 +80,7 @@ PRESETS: Dict[str, Dict[str, Any]] = {
         t0=0.0, t1=25.0, dt=0.01,
         solver_method="RK45", rtol=1e-4, atol=1e-7,
         fps_anim=30, max_frames=500, max_plot_pts=2500,
-        trail_on=True, trail_max_points=260,
+        trail_on=True, trail_max_points=400, live_plots=False,
     ),
     "Continuous rotation": dict(
         # omega0 = 7.5 rad/s exceeds the separatrix threshold sqrt(4g/L) ≈ 6.26 rad/s,
@@ -93,7 +93,7 @@ PRESETS: Dict[str, Dict[str, Any]] = {
         t0=0.0, t1=10.0, dt=0.01,
         solver_method="RK45", rtol=1e-4, atol=1e-7,
         fps_anim=30, max_frames=300, max_plot_pts=1500,
-        trail_on=True, trail_max_points=200,
+        trail_on=True, trail_max_points=300, live_plots=False,
     ),
     "Slow-fast near top": dict(
         # Released from rest 0.08 rad below the upright unstable equilibrium.
@@ -107,7 +107,7 @@ PRESETS: Dict[str, Dict[str, Any]] = {
         t0=0.0, t1=20.0, dt=0.01,
         solver_method="RK45", rtol=1e-4, atol=1e-7,
         fps_anim=30, max_frames=400, max_plot_pts=2000,
-        trail_on=True, trail_max_points=220,
+        trail_on=True, trail_max_points=360, live_plots=False,
     ),
     "Dry-friction freeze": dict(
         # Coulomb friction (fc=0.55 N·m) is large enough that the bob loses all kinetic
@@ -120,7 +120,7 @@ PRESETS: Dict[str, Dict[str, Any]] = {
         t0=0.0, t1=8.0, dt=0.01,
         solver_method="Radau", rtol=1e-4, atol=1e-7,
         fps_anim=30, max_frames=300, max_plot_pts=1500,
-        trail_on=True, trail_max_points=180,
+        trail_on=True, trail_max_points=280, live_plots=False,
     ),
 }
 
@@ -235,7 +235,7 @@ def controls(prefix: str) -> Controls:
             max_plot_pts=SliderSpec("Plot points (downsample)", 400, 6000, 2000, 200),
             trail_default=False,
             trail_checkbox_label="Show tip trail",
-            trail_max_points=SliderSpec("Trail max points", 50, 500, 180, 10),
+            trail_max_points=SliderSpec("Trail max points", 50, 800, 300, 10),
         )
 
         save_run, log_dir, run_name = logging_settings(prefix, expanded=False)

@@ -102,7 +102,7 @@ PRESETS: Dict[str, Dict[str, Any]] = {
         t0=0.0, t1=6.0, dt=0.01,
         solver_method="RK45", rtol=1e-4, atol=1e-6,
         fps_anim=30, max_frames=400, max_plot_pts=2000,
-        trail_on=False, trail_max_points=220,
+        trail_on=False, trail_max_points=400, live_plots=False,
     ),
     "LQR stabilisation": dict(
         ctrl_mode="LQR stabilizer",
@@ -121,7 +121,7 @@ PRESETS: Dict[str, Dict[str, Any]] = {
         t0=0.0, t1=4.0, dt=0.01,
         solver_method="RK45", rtol=1e-4, atol=1e-6,
         fps_anim=30, max_frames=300, max_plot_pts=1500,
-        trail_on=False, trail_max_points=220,
+        trail_on=False, trail_max_points=400, live_plots=False,
     ),
     "Swing-up + LQR": dict(
         ctrl_mode="Swing-up + LQR (simple)",
@@ -140,7 +140,7 @@ PRESETS: Dict[str, Dict[str, Any]] = {
         t0=0.0, t1=12.0, dt=0.01,
         solver_method="RK45", rtol=1e-4, atol=1e-6,
         fps_anim=30, max_frames=600, max_plot_pts=4000,
-        trail_on=True, trail_max_points=300,
+        trail_on=True, trail_max_points=600, live_plots=False,
     ),
 }
 
@@ -316,7 +316,7 @@ def controls(prefix: str) -> Controls:
             max_plot_pts=SliderSpec("Plot points (downsample)", 800, 20000, 6000, 200),
             trail_default=False,
             trail_checkbox_label="Show trail",
-            trail_max_points=SliderSpec("Trail max points", 50, 700, 260, 10),
+            trail_max_points=SliderSpec("Trail max points", 50, 1200, 450, 20),
         )
 
         save_run, log_dir, run_name = logging_settings(prefix, expanded=False)

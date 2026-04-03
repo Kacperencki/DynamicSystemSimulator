@@ -32,6 +32,7 @@ def make_dc_motor_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go.Figure
     max_plot_pts = int(ui.get("max_plot_pts", 2600))
     trail_on = bool(ui.get("trail_on", False))
     trail_max_points = int(ui.get("trail_max_points", 200))
+    live_plots = bool(ui.get("live_plots", False))
 
     # frame selection
     dt_sim = float(np.mean(np.diff(T))) if len(T) > 1 else max(float(cfg_param(cfg, "dt", 0.002)), 1e-6)
@@ -67,9 +68,11 @@ def make_dc_motor_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go.Figure
         subplot_titles=("", "", "", ""),
     )
 
-    # If trail is OFF: show full curves and only move the markers (lighter frames).
-    # If trail is ON : show a trailing window of the last `trail_max_points` points.
-    if trail_on:
+    # Determine initial line data based on mode.
+    # trail_on always starts empty (trail window in frames).
+    # live_plots=False + trail_on=False: show full static lines (efficient).
+    # live_plots=True  + trail_on=False: start empty, grow cumulatively in frames.
+    if trail_on or live_plots:
         th_line_x, th_line_y = [], []
         w_line_x, w_line_y = [], []
         i_line_x, i_line_y = [], []
@@ -119,7 +122,7 @@ def make_dc_motor_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go.Figure
 
     frames = []
     if trail_on:
-        # Update both lines (with a trailing window) + markers.
+        # Trail window: update both lines + markers.
         for k, idx in enumerate(frame_idx):
             idx = int(idx)
             j = int(np.searchsorted(plot_idx, idx, side="right"))
@@ -147,8 +150,31 @@ def make_dc_motor_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go.Figure
                 traces=list(range(8)),
             )
             frames.append(fr)
+    elif live_plots:
+        # Live mode: cumulative growing lines + markers.
+        for k, idx in enumerate(frame_idx):
+            idx = int(idx)
+            j = int(np.searchsorted(plot_idx, idx, side="right"))
+            if j < 1:
+                j = 1
+
+            fr = go.Frame(
+                name=str(k),
+                data=[
+                    go.Scatter(x=T_p[:j], y=th_p[:j]),
+                    go.Scatter(x=[float(T[idx])], y=[float(theta[idx])]),
+                    go.Scatter(x=T_p[:j], y=w_p[:j]),
+                    go.Scatter(x=[float(T[idx])], y=[float(omega[idx])]),
+                    go.Scatter(x=T_p[:j], y=i_p[:j]),
+                    go.Scatter(x=[float(T[idx])], y=[float(i[idx])]),
+                    go.Scatter(x=T_p[:j], y=V_p[:j]),
+                    go.Scatter(x=[float(T[idx])], y=[float(V[idx])]),
+                ],
+                traces=list(range(8)),
+            )
+            frames.append(fr)
     else:
-        # Only move markers; keep full curves fixed.
+        # Static mode (live_plots=False, trail_on=False): full curves fixed, only move markers.
         for k, idx in enumerate(frame_idx):
             idx = int(idx)
             fr = go.Frame(

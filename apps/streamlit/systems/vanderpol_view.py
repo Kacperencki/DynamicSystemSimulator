@@ -38,7 +38,7 @@ PRESETS: Dict[str, Dict[str, Any]] = {
         t0=0.0, t1=20.0, dt=0.01,
         solver_method="RK45", rtol=1e-4, atol=1e-7,
         fps_anim=30, max_frames=400, max_plot_pts=2500,
-        trail_on=True, trail_max_points=220,
+        trail_on=True, trail_max_points=400, live_plots=False,
     ),
     "Relaxation oscillation": dict(
         L=1.0, C=1.0, mu=8.0,
@@ -46,7 +46,7 @@ PRESETS: Dict[str, Dict[str, Any]] = {
         t0=0.0, t1=40.0, dt=0.01,
         solver_method="Radau", rtol=1e-4, atol=1e-7,
         fps_anim=30, max_frames=400, max_plot_pts=3000,
-        trail_on=True, trail_max_points=240,
+        trail_on=True, trail_max_points=500, live_plots=False,
     ),
     "Slow limit-cycle approach": dict(
         # μ=0.3: oscillator is still nearly harmonic but amplitude drifts noticeably
@@ -57,7 +57,7 @@ PRESETS: Dict[str, Dict[str, Any]] = {
         t0=0.0, t1=80.0, dt=0.05,
         solver_method="RK45", rtol=1e-4, atol=1e-7,
         fps_anim=30, max_frames=400, max_plot_pts=2500,
-        trail_on=True, trail_max_points=260,
+        trail_on=True, trail_max_points=500, live_plots=False,
     ),
     "Amplitude collapse": dict(
         # Start at v0=4.5 V, well outside the limit cycle (~2 V amplitude).
@@ -68,7 +68,7 @@ PRESETS: Dict[str, Dict[str, Any]] = {
         t0=0.0, t1=20.0, dt=0.01,
         solver_method="RK45", rtol=1e-4, atol=1e-7,
         fps_anim=30, max_frames=400, max_plot_pts=2500,
-        trail_on=True, trail_max_points=240,
+        trail_on=True, trail_max_points=500, live_plots=False,
     ),
 }
 
@@ -112,7 +112,7 @@ def controls(prefix: str) -> Controls:
             max_plot_pts=SliderSpec("Plot points (downsample)", 600, 12000, 5000, 200),
             trail_default=True,
             trail_checkbox_label="Show trajectory trail",
-            trail_max_points=SliderSpec("Trail max points", 50, 600, 260, 10),
+            trail_max_points=SliderSpec("Trail max points", 50, 1200, 450, 20),
         )
 
         save_run, log_dir, run_name = logging_settings(prefix, expanded=False)

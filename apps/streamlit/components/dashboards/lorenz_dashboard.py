@@ -26,6 +26,7 @@ def make_lorenz_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go.Figure:
     max_plot_pts = int(ui.get("max_plot_pts", 3000))
     trail_on = bool(ui.get("trail_on", True))
     trail_max_points = int(ui.get("trail_max_points", 350))
+    live_plots = bool(ui.get("live_plots", False))
 
     # frame selection
     dt_sim = float(np.mean(np.diff(T))) if len(T) > 1 else max(float(solver_param(cfg, "dt", 0.01)), 1e-6)
@@ -63,6 +64,7 @@ def make_lorenz_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go.Figure:
     i1 = int(frame_idx[1]) if len(frame_idx) > 1 else min(i0 + 1, len(T) - 1)
 
     # --- 3D attractor (left) ---
+    # Trace 0: trajectory (always animated — trail or full)
     # Seed with at least 2 points (Scatter3d lines often render poorly with empty/1-point lines).
     fig.add_trace(
         go.Scatter3d(
@@ -76,6 +78,7 @@ def make_lorenz_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go.Figure:
         ),
         row=1, col=1,
     )
+    # Trace 1: current position marker (always animated)
     fig.add_trace(
         go.Scatter3d(
             x=[float(x[i0])],
@@ -89,17 +92,24 @@ def make_lorenz_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go.Figure:
         row=1, col=1,
     )
 
-    # --- x(t) ---
-    fig.add_trace(go.Scatter(x=[], y=[], mode="lines", showlegend=False, name="x", line=dict(width=2)), row=1, col=2)
-    fig.add_trace(go.Scatter(x=[], y=[], mode="markers", showlegend=False, name="x_m", marker=dict(size=6)), row=1, col=2)
-
-    # --- y(t) ---
-    fig.add_trace(go.Scatter(x=[], y=[], mode="lines", showlegend=False, name="y", line=dict(width=2)), row=2, col=2)
-    fig.add_trace(go.Scatter(x=[], y=[], mode="markers", showlegend=False, name="y_m", marker=dict(size=6)), row=2, col=2)
-
-    # --- z(t) ---
-    fig.add_trace(go.Scatter(x=[], y=[], mode="lines", showlegend=False, name="z", line=dict(width=2)), row=3, col=2)
-    fig.add_trace(go.Scatter(x=[], y=[], mode="markers", showlegend=False, name="z_m", marker=dict(size=6)), row=3, col=2)
+    if not live_plots:
+        # Static mode: full time-series lines upfront (traces 2, 3, 4), marker traces (5, 6, 7).
+        fig.add_trace(go.Scatter(x=T_p, y=x_p, mode="lines", showlegend=False, name="x", line=dict(width=2)), row=1, col=2)
+        fig.add_trace(go.Scatter(x=T_p, y=y_p, mode="lines", showlegend=False, name="y", line=dict(width=2)), row=2, col=2)
+        fig.add_trace(go.Scatter(x=T_p, y=z_p, mode="lines", showlegend=False, name="z", line=dict(width=2)), row=3, col=2)
+        fig.add_trace(go.Scatter(x=[], y=[], mode="markers", showlegend=False, name="x_m", marker=dict(size=6)), row=1, col=2)
+        fig.add_trace(go.Scatter(x=[], y=[], mode="markers", showlegend=False, name="y_m", marker=dict(size=6)), row=2, col=2)
+        fig.add_trace(go.Scatter(x=[], y=[], mode="markers", showlegend=False, name="z_m", marker=dict(size=6)), row=3, col=2)
+        animated_traces = [0, 1, 5, 6, 7]
+    else:
+        # Live mode: cumulative traces.
+        fig.add_trace(go.Scatter(x=[], y=[], mode="lines", showlegend=False, name="x", line=dict(width=2)), row=1, col=2)
+        fig.add_trace(go.Scatter(x=[], y=[], mode="markers", showlegend=False, name="x_m", marker=dict(size=6)), row=1, col=2)
+        fig.add_trace(go.Scatter(x=[], y=[], mode="lines", showlegend=False, name="y", line=dict(width=2)), row=2, col=2)
+        fig.add_trace(go.Scatter(x=[], y=[], mode="markers", showlegend=False, name="y_m", marker=dict(size=6)), row=2, col=2)
+        fig.add_trace(go.Scatter(x=[], y=[], mode="lines", showlegend=False, name="z", line=dict(width=2)), row=3, col=2)
+        fig.add_trace(go.Scatter(x=[], y=[], mode="markers", showlegend=False, name="z_m", marker=dict(size=6)), row=3, col=2)
+        animated_traces = list(range(8))
 
     # time axes
     fig.update_xaxes(range=[t_min, t_max], title_text="t [s]", row=1, col=2)
@@ -111,13 +121,20 @@ def make_lorenz_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go.Figure:
     fig.update_xaxes(range=[t_min, t_max], title_text="t [s]", row=3, col=2)
     fig.update_yaxes(range=[z_min, z_max], title_text="z", row=3, col=2)
 
-    # 3D scene
+    # 3D scene — camera looks roughly along the y-axis so the two butterfly lobes
+    # are spread left/right in x with z pointing up (classic butterfly silhouette).
+    # Slight x and z offsets add perspective depth.
     fig.update_layout(
         scene=dict(
             xaxis=dict(title="x", range=[x_min, x_max]),
             yaxis=dict(title="y", range=[y_min, y_max]),
             zaxis=dict(title="z", range=[z_min, z_max]),
             aspectmode="cube",
+            camera=dict(
+                eye=dict(x=0.3, y=-2.1, z=0.25),
+                up=dict(x=0, y=0, z=1),
+                center=dict(x=0, y=0, z=0),
+            ),
         ),
         height=660,
         margin=dict(l=6, r=6, t=58, b=8),
@@ -150,20 +167,35 @@ def make_lorenz_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go.Figure:
             y_tr = y_p[:jj]
             z_tr = z_p[:jj]
 
-        fr = go.Frame(
-            name=str(k),
-            data=[
-                go.Scatter3d(x=x_tr, y=y_tr, z=z_tr),
-                go.Scatter3d(x=[float(x[i])], y=[float(y[i])], z=[float(z[i])]),
-                go.Scatter(x=T_p[:j], y=x_p[:j]),
-                go.Scatter(x=[float(T[i])], y=[float(x[i])]),
-                go.Scatter(x=T_p[:j], y=y_p[:j]),
-                go.Scatter(x=[float(T[i])], y=[float(y[i])]),
-                go.Scatter(x=T_p[:j], y=z_p[:j]),
-                go.Scatter(x=[float(T[i])], y=[float(z[i])]),
-            ],
-            traces=list(range(8)),
-        )
+        if not live_plots:
+            # Static mode: animate 3D traj + marker + right-side marker dots only.
+            fr = go.Frame(
+                name=str(k),
+                data=[
+                    go.Scatter3d(x=x_tr, y=y_tr, z=z_tr),                                    # 0
+                    go.Scatter3d(x=[float(x[i])], y=[float(y[i])], z=[float(z[i])]),          # 1
+                    go.Scatter(x=[float(T[i])], y=[float(x[i])]),                             # 5
+                    go.Scatter(x=[float(T[i])], y=[float(y[i])]),                             # 6
+                    go.Scatter(x=[float(T[i])], y=[float(z[i])]),                             # 7
+                ],
+                traces=animated_traces,
+            )
+        else:
+            # Live mode: cumulative right-side data per frame.
+            fr = go.Frame(
+                name=str(k),
+                data=[
+                    go.Scatter3d(x=x_tr, y=y_tr, z=z_tr),
+                    go.Scatter3d(x=[float(x[i])], y=[float(y[i])], z=[float(z[i])]),
+                    go.Scatter(x=T_p[:j], y=x_p[:j]),
+                    go.Scatter(x=[float(T[i])], y=[float(x[i])]),
+                    go.Scatter(x=T_p[:j], y=y_p[:j]),
+                    go.Scatter(x=[float(T[i])], y=[float(y[i])]),
+                    go.Scatter(x=T_p[:j], y=z_p[:j]),
+                    go.Scatter(x=[float(T[i])], y=[float(z[i])]),
+                ],
+                traces=animated_traces,
+            )
         frames.append(fr)
 
     fig.frames = frames

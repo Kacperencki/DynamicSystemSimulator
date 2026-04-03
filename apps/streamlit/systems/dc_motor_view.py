@@ -42,7 +42,7 @@ PRESETS: Dict[str, Dict[str, Any]] = {
         t0=0.0, t1=0.6, dt=0.001,
         solver_method="RK45", rtol=1e-4, atol=1e-7,
         fps_anim=30, max_frames=400, max_plot_pts=2500,
-        trail_on=False, trail_max_points=180,
+        trail_on=False, trail_max_points=280, live_plots=False,
     ),
     "Sine input": dict(
         R=2.0, L=1e-3, Ke=0.1, Kt=0.1, J=1e-3, bm=1e-4,
@@ -52,7 +52,7 @@ PRESETS: Dict[str, Dict[str, Any]] = {
         t0=0.0, t1=1.2, dt=0.001,
         solver_method="RK45", rtol=1e-4, atol=1e-7,
         fps_anim=30, max_frames=400, max_plot_pts=3000,
-        trail_on=False, trail_max_points=180,
+        trail_on=False, trail_max_points=280, live_plots=False,
     ),
     "Coulomb stall then start": dict(
         # Voltage ramps 0→8 V over 0.4 s (20 V/s). Coulomb load tau_c=0.15 N·m keeps
@@ -65,7 +65,7 @@ PRESETS: Dict[str, Dict[str, Any]] = {
         t0=0.0, t1=0.8, dt=0.001,
         solver_method="Radau", rtol=1e-4, atol=1e-7,
         fps_anim=30, max_frames=400, max_plot_pts=2000,
-        trail_on=False, trail_max_points=180,
+        trail_on=False, trail_max_points=280, live_plots=False,
     ),
     "PWM speed control": dict(
         # 50 Hz square wave at 12 V, 70 % duty cycle — a typical brushed-DC PWM drive.
@@ -78,7 +78,7 @@ PRESETS: Dict[str, Dict[str, Any]] = {
         t0=0.0, t1=0.3, dt=0.0005,
         solver_method="RK45", rtol=1e-4, atol=1e-7,
         fps_anim=30, max_frames=400, max_plot_pts=3000,
-        trail_on=False, trail_max_points=180,
+        trail_on=False, trail_max_points=280, live_plots=False,
     ),
 }
 
@@ -179,7 +179,7 @@ def controls(prefix: str) -> Controls:
             max_plot_pts=SliderSpec("Plot points (downsample)", 600, 20000, 4000, 200),
             trail_default=False,
             trail_checkbox_label="Show trail",
-            trail_max_points=SliderSpec("Trail max points", 50, 600, 200, 10),
+            trail_max_points=SliderSpec("Trail max points", 50, 1400, 350, 20),
         )
 
         save_run, log_dir, run_name = logging_settings(prefix, expanded=False)

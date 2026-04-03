@@ -49,7 +49,7 @@ PRESETS: Dict[str, Dict[str, Any]] = {
         t0=0.0, t1=12.0, dt=0.01,
         solver_method="RK45", rtol=1e-4, atol=1e-7,
         fps_anim=30, max_frames=360, max_plot_pts=2000,
-        trail_on=False, trail_max_points=180,
+        trail_on=False, trail_max_points=360, live_plots=False,
     ),
     "Chaotic (ideal)": dict(
         mode="ideal",
@@ -64,7 +64,7 @@ PRESETS: Dict[str, Dict[str, Any]] = {
         t0=0.0, t1=20.0, dt=0.01,
         solver_method="RK45", rtol=1e-4, atol=1e-7,
         fps_anim=30, max_frames=400, max_plot_pts=2500,
-        trail_on=True, trail_max_points=220,
+        trail_on=True, trail_max_points=500, live_plots=False,
     ),
     "Damped": dict(
         mode="damped",
@@ -79,7 +79,7 @@ PRESETS: Dict[str, Dict[str, Any]] = {
         t0=0.0, t1=14.0, dt=0.01,
         solver_method="Radau", rtol=1e-4, atol=1e-7,
         fps_anim=30, max_frames=360, max_plot_pts=2000,
-        trail_on=False, trail_max_points=180,
+        trail_on=False, trail_max_points=360, live_plots=False,
     ),
     "Inner arm spinning": dict(
         # Upper arm starts at 60° from vertical (rest); lower arm is given w2_0=8 rad/s —
@@ -96,7 +96,7 @@ PRESETS: Dict[str, Dict[str, Any]] = {
         t0=0.0, t1=12.0, dt=0.01,
         solver_method="RK45", rtol=1e-4, atol=1e-7,
         fps_anim=30, max_frames=360, max_plot_pts=2000,
-        trail_on=True, trail_max_points=220,
+        trail_on=True, trail_max_points=500, live_plots=False,
     ),
     "Both arms upright": dict(
         # Both arms start 1–3 % below the upright position with a tiny asymmetry.
@@ -114,7 +114,7 @@ PRESETS: Dict[str, Dict[str, Any]] = {
         t0=0.0, t1=15.0, dt=0.01,
         solver_method="RK45", rtol=1e-4, atol=1e-7,
         fps_anim=30, max_frames=420, max_plot_pts=2500,
-        trail_on=True, trail_max_points=240,
+        trail_on=True, trail_max_points=600, live_plots=False,
     ),
 }
 
@@ -238,7 +238,7 @@ def controls(prefix: str) -> Controls:
             max_plot_pts=SliderSpec("Plot points (downsample)", 600, 8000, 3000, 200),
             trail_default=False,
             trail_checkbox_label="Show tip trail",
-            trail_max_points=SliderSpec("Trail max points", 50, 600, 200, 10),
+            trail_max_points=SliderSpec("Trail max points", 50, 900, 400, 10),
         )
 
         save_run, log_dir, run_name = logging_settings(prefix, expanded=False)

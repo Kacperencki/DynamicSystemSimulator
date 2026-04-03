@@ -250,6 +250,18 @@ def animation_performance(
                     key=f"{prefix}_trail_on",
                     help="Show a short history (trail) instead of the full curve.",
                 )
+                st.session_state.setdefault(f"{prefix}_live_plots", False)
+                st.checkbox(
+                    "Live plots",
+                    key=f"{prefix}_live_plots",
+                    help=(
+                        "When enabled, the right-side time-series and phase plots animate "
+                        "frame-by-frame alongside the main animation. This looks great but "
+                        "generates a very large figure payload (10-50 MB) which can cause "
+                        "slow loading and sluggish browser performance. "
+                        "Disable for significantly faster rendering."
+                    ),
+                )
                 st.slider(
                     trail_max_points.label,
                     trail_max_points.min,
@@ -285,6 +297,18 @@ def animation_performance(
                 key=f"{prefix}_trail_on",
                 help="Show a short history (trail) instead of the full curve.",
             )
+            st.session_state.setdefault(f"{prefix}_live_plots", False)
+            st.checkbox(
+                "Live plots",
+                key=f"{prefix}_live_plots",
+                help=(
+                    "When enabled, the right-side time-series and phase plots animate "
+                    "frame-by-frame alongside the main animation. This looks great but "
+                    "generates a very large figure payload (10-50 MB) which can cause "
+                    "slow loading and sluggish browser performance. "
+                    "Disable for significantly faster rendering."
+                ),
+            )
             st.slider(
                 trail_max_points.label,
                 trail_max_points.min,
@@ -311,6 +335,7 @@ def animation_performance(
         trail_on=bool(st.session_state.get(f"{prefix}_trail_on", trail_default)),
         trail_max_points=int(st.session_state.get(f"{prefix}_trail_max_points", trail_max_points.value)),
         max_plot_pts=int(st.session_state.get(f"{prefix}_max_plot_pts", max_plot_pts.value)),
+        live_plots=bool(st.session_state.get(f"{prefix}_live_plots", False)),
     )
 
 

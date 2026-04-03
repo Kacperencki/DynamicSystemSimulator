@@ -42,6 +42,7 @@ def make_inverted_pendulum_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> 
           - "max_plot_pts"     maximum points rendered in the time-series plots (default 2000)
           - "trail_on"         bool — show tip trail in animation (default False)
           - "trail_max_points" length of the tip trail in solver steps (default 180)
+          - "live_plots"       bool — animate right-side plots frame-by-frame (default False)
 
     Returns
     -------
@@ -62,6 +63,7 @@ def make_inverted_pendulum_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> 
     max_plot_pts = int(ui.get("max_plot_pts", 2000))
     trail_on = bool(ui.get("trail_on", False))
     trail_max_points = int(ui.get("trail_max_points", 180))
+    live_plots = bool(ui.get("live_plots", False))
 
     # Cart geometry in metres (same coordinate system as the simulation).
     # W is at least 0.6 m and scales with pole length so the cart looks proportional.
@@ -117,8 +119,9 @@ def make_inverted_pendulum_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> 
     i0 = int(frame_idx[0]) if len(frame_idx) else 0
 
     # --- animation (left) ---
+    # Trace 0: trail
     fig.add_trace(go.Scatter(x=[], y=[], mode="lines", showlegend=False, hoverinfo="skip", name="trail"), row=1, col=1)
-    # cart outline
+    # Trace 1: cart outline
     cart_x0 = float(x[i0] - 0.5 * W)
     cart_x1 = float(x[i0] + 0.5 * W)
     cart_y0 = 0.0
@@ -134,7 +137,7 @@ def make_inverted_pendulum_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> 
         ),
         row=1, col=1
     )
-    # pole
+    # Trace 2: pole
     fig.add_trace(
         go.Scatter(
             x=[float(x[i0]), float(tip_x[i0])],
@@ -145,7 +148,7 @@ def make_inverted_pendulum_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> 
         ),
         row=1, col=1
     )
-    # tip marker
+    # Trace 3: tip marker
     fig.add_trace(
         go.Scatter(
             x=[float(tip_x[i0])],
@@ -158,17 +161,24 @@ def make_inverted_pendulum_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> 
         row=1, col=1
     )
 
-    # --- θ(t) (row1 col2) ---
-    fig.add_trace(go.Scatter(x=[], y=[], mode="lines", showlegend=False, name="θ live", line=dict(width=2)), row=1, col=2)
-    fig.add_trace(go.Scatter(x=[], y=[], mode="markers", showlegend=False, name="θ marker", marker=dict(size=6)), row=1, col=2)
-
-    # --- x(t) (row2 col2) ---
-    fig.add_trace(go.Scatter(x=[], y=[], mode="lines", showlegend=False, name="x live", line=dict(width=2)), row=2, col=2)
-    fig.add_trace(go.Scatter(x=[], y=[], mode="markers", showlegend=False, name="x marker", marker=dict(size=6)), row=2, col=2)
-
-    # --- phase (row3 col2) ---
-    fig.add_trace(go.Scatter(x=[], y=[], mode="lines", showlegend=False, name="phase", line=dict(width=2)), row=3, col=2)
-    fig.add_trace(go.Scatter(x=[], y=[], mode="markers", showlegend=False, name="phase marker", marker=dict(size=6)), row=3, col=2)
+    if not live_plots:
+        # Static mode: full lines upfront (traces 4, 5, 6), empty markers (traces 7, 8, 9).
+        fig.add_trace(go.Scatter(x=T_p, y=th_p, mode="lines", showlegend=False, name="θ line", line=dict(width=2)), row=1, col=2)
+        fig.add_trace(go.Scatter(x=T_p, y=x_p, mode="lines", showlegend=False, name="x line", line=dict(width=2)), row=2, col=2)
+        fig.add_trace(go.Scatter(x=th_p, y=thd_p, mode="lines", showlegend=False, name="phase line", line=dict(width=2)), row=3, col=2)
+        fig.add_trace(go.Scatter(x=[], y=[], mode="markers", showlegend=False, name="θ marker", marker=dict(size=6)), row=1, col=2)
+        fig.add_trace(go.Scatter(x=[], y=[], mode="markers", showlegend=False, name="x marker", marker=dict(size=6)), row=2, col=2)
+        fig.add_trace(go.Scatter(x=[], y=[], mode="markers", showlegend=False, name="phase marker", marker=dict(size=6)), row=3, col=2)
+        animated_traces = [0, 1, 2, 3, 7, 8, 9]
+    else:
+        # Live mode: cumulative traces 4-9.
+        fig.add_trace(go.Scatter(x=[], y=[], mode="lines", showlegend=False, name="θ live", line=dict(width=2)), row=1, col=2)
+        fig.add_trace(go.Scatter(x=[], y=[], mode="markers", showlegend=False, name="θ marker", marker=dict(size=6)), row=1, col=2)
+        fig.add_trace(go.Scatter(x=[], y=[], mode="lines", showlegend=False, name="x live", line=dict(width=2)), row=2, col=2)
+        fig.add_trace(go.Scatter(x=[], y=[], mode="markers", showlegend=False, name="x marker", marker=dict(size=6)), row=2, col=2)
+        fig.add_trace(go.Scatter(x=[], y=[], mode="lines", showlegend=False, name="phase", line=dict(width=2)), row=3, col=2)
+        fig.add_trace(go.Scatter(x=[], y=[], mode="markers", showlegend=False, name="phase marker", marker=dict(size=6)), row=3, col=2)
+        animated_traces = list(range(10))
 
     # layout axes
     fig.update_xaxes(range=[x_min, x_max], showgrid=False, zeroline=False, row=1, col=1)
@@ -186,10 +196,6 @@ def make_inverted_pendulum_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> 
     frames = []
     for k, i in enumerate(frame_idx):
         i = int(i)
-        # plot subset up to i (downsampled)
-        j = int(np.searchsorted(plot_idx, i, side="right"))
-        if j < 1:
-            j = 1
 
         # trail
         if trail_on:
@@ -206,35 +212,62 @@ def make_inverted_pendulum_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> 
         cy0 = 0.0
         cy1 = float(H)
 
-        fr = go.Frame(
-            name=str(k),
-            data=[
-                # 0 trail
-                go.Scatter(x=trail_x, y=trail_y),
-                # 1 cart
-                go.Scatter(
-                    x=[cx0, cx1, cx1, cx0, cx0],
-                    y=[cy0, cy0, cy1, cy1, cy0],
-                ),
-                # 2 pole
-                go.Scatter(x=[float(x[i]), float(tip_x[i])], y=[pivot_y, float(tip_y[i])]),
-                # 3 tip
-                go.Scatter(x=[float(tip_x[i])], y=[float(tip_y[i])]),
-                # 4 theta live
-                go.Scatter(x=T_p[:j], y=th_p[:j]),
-                # 5 theta marker
-                go.Scatter(x=[float(T[i])], y=[float(theta[i])]),
-                # 6 x live
-                go.Scatter(x=T_p[:j], y=x_p[:j]),
-                # 7 x marker
-                go.Scatter(x=[float(T[i])], y=[float(x[i])]),
-                # 8 phase live
-                go.Scatter(x=th_p[:j], y=thd_p[:j]),
-                # 9 phase marker
-                go.Scatter(x=[float(theta[i])], y=[float(theta_dot[i])]),
-            ],
-            traces=list(range(10)),
-        )
+        if not live_plots:
+            # Static mode: only animate left panel + marker dots.
+            fr = go.Frame(
+                name=str(k),
+                data=[
+                    # 0 trail
+                    go.Scatter(x=trail_x, y=trail_y),
+                    # 1 cart
+                    go.Scatter(x=[cx0, cx1, cx1, cx0, cx0], y=[cy0, cy0, cy1, cy1, cy0]),
+                    # 2 pole
+                    go.Scatter(x=[float(x[i]), float(tip_x[i])], y=[pivot_y, float(tip_y[i])]),
+                    # 3 tip
+                    go.Scatter(x=[float(tip_x[i])], y=[float(tip_y[i])]),
+                    # 7 θ marker
+                    go.Scatter(x=[float(T[i])], y=[float(theta[i])]),
+                    # 8 x marker
+                    go.Scatter(x=[float(T[i])], y=[float(x[i])]),
+                    # 9 phase marker
+                    go.Scatter(x=[float(theta[i])], y=[float(theta_dot[i])]),
+                ],
+                traces=animated_traces,
+            )
+        else:
+            # Live mode: cumulative data per frame.
+            j = int(np.searchsorted(plot_idx, i, side="right"))
+            if j < 1:
+                j = 1
+            fr = go.Frame(
+                name=str(k),
+                data=[
+                    # 0 trail
+                    go.Scatter(x=trail_x, y=trail_y),
+                    # 1 cart
+                    go.Scatter(
+                        x=[cx0, cx1, cx1, cx0, cx0],
+                        y=[cy0, cy0, cy1, cy1, cy0],
+                    ),
+                    # 2 pole
+                    go.Scatter(x=[float(x[i]), float(tip_x[i])], y=[pivot_y, float(tip_y[i])]),
+                    # 3 tip
+                    go.Scatter(x=[float(tip_x[i])], y=[float(tip_y[i])]),
+                    # 4 theta live
+                    go.Scatter(x=T_p[:j], y=th_p[:j]),
+                    # 5 theta marker
+                    go.Scatter(x=[float(T[i])], y=[float(theta[i])]),
+                    # 6 x live
+                    go.Scatter(x=T_p[:j], y=x_p[:j]),
+                    # 7 x marker
+                    go.Scatter(x=[float(T[i])], y=[float(x[i])]),
+                    # 8 phase live
+                    go.Scatter(x=th_p[:j], y=thd_p[:j]),
+                    # 9 phase marker
+                    go.Scatter(x=[float(theta[i])], y=[float(theta_dot[i])]),
+                ],
+                traces=animated_traces,
+            )
         frames.append(fr)
 
     fig.frames = frames

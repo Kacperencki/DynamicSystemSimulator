@@ -38,7 +38,7 @@ PRESETS: Dict[str, Dict[str, Any]] = {
         t0=0.0, t1=25.0, dt=0.005,
         solver_method="RK45", rtol=1e-4, atol=1e-7,
         fps_anim=30, max_frames=500, max_plot_pts=4000,
-        trail_on=True, trail_max_points=280,
+        trail_on=True, trail_max_points=700, live_plots=False,
     ),
     "Sensitive to IC": dict(
         sigma=10.0, rho=28.0, beta=8.0 / 3.0,
@@ -46,7 +46,7 @@ PRESETS: Dict[str, Dict[str, Any]] = {
         t0=0.0, t1=25.0, dt=0.005,
         solver_method="RK45", rtol=1e-4, atol=1e-7,
         fps_anim=30, max_frames=500, max_plot_pts=4000,
-        trail_on=True, trail_max_points=280,
+        trail_on=True, trail_max_points=700, live_plots=False,
     ),
     "Near-periodic (rho=99.96)": dict(
         sigma=10.0, rho=99.96, beta=8.0 / 3.0,
@@ -54,7 +54,7 @@ PRESETS: Dict[str, Dict[str, Any]] = {
         t0=0.0, t1=20.0, dt=0.005,
         solver_method="RK45", rtol=1e-4, atol=1e-7,
         fps_anim=30, max_frames=400, max_plot_pts=3000,
-        trail_on=True, trail_max_points=240,
+        trail_on=True, trail_max_points=500, live_plots=False,
     ),
     "Fixed-point settling (rho=20)": dict(
         # rho=20 is below the chaos onset (≈24.74): both fixed points C± are stable.
@@ -65,7 +65,7 @@ PRESETS: Dict[str, Dict[str, Any]] = {
         t0=0.0, t1=20.0, dt=0.005,
         solver_method="RK45", rtol=1e-4, atol=1e-7,
         fps_anim=30, max_frames=400, max_plot_pts=3000,
-        trail_on=True, trail_max_points=260,
+        trail_on=True, trail_max_points=500, live_plots=False,
     ),
     "Chaos onset (rho=24.4)": dict(
         # Just below the subcritical Hopf bifurcation at rho≈24.74. The trajectory
@@ -76,7 +76,7 @@ PRESETS: Dict[str, Dict[str, Any]] = {
         t0=0.0, t1=30.0, dt=0.005,
         solver_method="RK45", rtol=1e-4, atol=1e-7,
         fps_anim=30, max_frames=500, max_plot_pts=4000,
-        trail_on=True, trail_max_points=280,
+        trail_on=True, trail_max_points=700, live_plots=False,
     ),
 }
 
@@ -119,7 +119,7 @@ def controls(prefix: str) -> Controls:
             max_plot_pts=SliderSpec("Plot points (downsample)", 800, 20000, 8000, 200),
             trail_default=True,
             trail_checkbox_label="Show trail (3D)",
-            trail_max_points=SliderSpec("Trail max points", 50, 700, 280, 10),
+            trail_max_points=SliderSpec("Trail max points", 50, 1600, 600, 20),
         )
 
         save_run, log_dir, run_name = logging_settings(prefix, expanded=False)

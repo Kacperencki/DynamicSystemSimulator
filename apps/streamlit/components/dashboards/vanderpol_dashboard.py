@@ -33,6 +33,7 @@ def make_vanderpol_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go.Figur
     max_plot_pts = int(ui.get("max_plot_pts", 2200))
     trail_on = bool(ui.get("trail_on", False))
     trail_max_points = int(ui.get("trail_max_points", 240))
+    live_plots = bool(ui.get("live_plots", False))
 
     # frame selection
     dt_sim = float(np.mean(np.diff(T))) if len(T) > 1 else max(float(solver_param(cfg, "dt", 0.01)), 1e-6)
@@ -69,60 +70,67 @@ def make_vanderpol_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go.Figur
 
     i0 = int(frame_idx[0]) if len(frame_idx) else 0
 
-    # --- phase portrait (left): dv/dt (x-axis) vs v (y-axis) ---
-    fig.add_trace(
-        go.Scatter(x=[], y=[], mode="lines", showlegend=False, name="phase live", line=dict(width=2)),
-        row=1,
-        col=1,
-    )
-    fig.add_trace(
-        go.Scatter(
-            x=[float(v[i0])],
-            y=[float(dv_dt[i0])],
-            mode="markers",
-            marker=dict(size=8),
-            showlegend=False,
-            name="marker",
-        ),
-        row=1,
-        col=1,
-    )
-
-    # --- v(t) ---
-    fig.add_trace(
-        go.Scatter(x=[], y=[], mode="lines", showlegend=False, name="v live", line=dict(width=2)),
-        row=1,
-        col=2,
-    )
-    fig.add_trace(
-        go.Scatter(x=[], y=[], mode="markers", showlegend=False, name="v marker", marker=dict(size=6)),
-        row=1,
-        col=2,
-    )
-
-    # --- iL(t) ---
-    fig.add_trace(
-        go.Scatter(x=[], y=[], mode="lines", showlegend=False, name="iL live", line=dict(width=2)),
-        row=2,
-        col=2,
-    )
-    fig.add_trace(
-        go.Scatter(x=[], y=[], mode="markers", showlegend=False, name="iL marker", marker=dict(size=6)),
-        row=2,
-        col=2,
-    )
-
-    # --- dv/dt(t) ---
-    fig.add_trace(
-        go.Scatter(x=[], y=[], mode="lines", showlegend=False, name="dv live", line=dict(width=2)),
-        row=3,
-        col=2,
-    )
-    fig.add_trace(
-        go.Scatter(x=[], y=[], mode="markers", showlegend=False, name="dv marker", marker=dict(size=6)),
-        row=3,
-        col=2,
-    )
+    if not live_plots:
+        # Static mode: trace layout:
+        #   0=phase_line (left, static), 1=phase_marker (left, animated),
+        #   2=v_line (static), 3=iL_line (static), 4=dv_line (static),
+        #   5=v_marker, 6=iL_marker, 7=dv_marker
+        if trail_on:
+            ph_x_init: Any = []
+            ph_y_init: Any = []
+        else:
+            ph_x_init = v_p
+            ph_y_init = dv_p
+        fig.add_trace(
+            go.Scatter(x=ph_x_init, y=ph_y_init, mode="lines", showlegend=False, name="phase line", line=dict(width=2)),
+            row=1, col=1,
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=[float(v[i0])],
+                y=[float(dv_dt[i0])],
+                mode="markers",
+                marker=dict(size=8),
+                showlegend=False,
+                name="marker",
+            ),
+            row=1, col=1,
+        )
+        fig.add_trace(go.Scatter(x=T_p, y=v_p, mode="lines", showlegend=False, name="v line", line=dict(width=2)), row=1, col=2)
+        fig.add_trace(go.Scatter(x=T_p, y=iL_p, mode="lines", showlegend=False, name="iL line", line=dict(width=2)), row=2, col=2)
+        fig.add_trace(go.Scatter(x=T_p, y=dv_p, mode="lines", showlegend=False, name="dv line", line=dict(width=2)), row=3, col=2)
+        fig.add_trace(go.Scatter(x=[], y=[], mode="markers", showlegend=False, name="v marker", marker=dict(size=6)), row=1, col=2)
+        fig.add_trace(go.Scatter(x=[], y=[], mode="markers", showlegend=False, name="iL marker", marker=dict(size=6)), row=2, col=2)
+        fig.add_trace(go.Scatter(x=[], y=[], mode="markers", showlegend=False, name="dv marker", marker=dict(size=6)), row=3, col=2)
+        animated_traces = [1, 5, 6, 7]
+        if trail_on:
+            animated_traces = [0, 1, 5, 6, 7]
+    else:
+        # Live mode: all traces animated cumulatively.
+        #   0=phase_live (left), 1=phase_marker (left),
+        #   2=v_live, 3=v_marker, 4=iL_live, 5=iL_marker, 6=dv_live, 7=dv_marker
+        fig.add_trace(
+            go.Scatter(x=[], y=[], mode="lines", showlegend=False, name="phase live", line=dict(width=2)),
+            row=1, col=1,
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=[float(v[i0])],
+                y=[float(dv_dt[i0])],
+                mode="markers",
+                marker=dict(size=8),
+                showlegend=False,
+                name="marker",
+            ),
+            row=1, col=1,
+        )
+        fig.add_trace(go.Scatter(x=[], y=[], mode="lines", showlegend=False, name="v live", line=dict(width=2)), row=1, col=2)
+        fig.add_trace(go.Scatter(x=[], y=[], mode="markers", showlegend=False, name="v marker", marker=dict(size=6)), row=1, col=2)
+        fig.add_trace(go.Scatter(x=[], y=[], mode="lines", showlegend=False, name="iL live", line=dict(width=2)), row=2, col=2)
+        fig.add_trace(go.Scatter(x=[], y=[], mode="markers", showlegend=False, name="iL marker", marker=dict(size=6)), row=2, col=2)
+        fig.add_trace(go.Scatter(x=[], y=[], mode="lines", showlegend=False, name="dv live", line=dict(width=2)), row=3, col=2)
+        fig.add_trace(go.Scatter(x=[], y=[], mode="markers", showlegend=False, name="dv marker", marker=dict(size=6)), row=3, col=2)
+        animated_traces = list(range(8))
 
     # axes
     fig.update_xaxes(range=[v_min, v_max], title_text="v [V]", row=1, col=1)
@@ -149,41 +157,70 @@ def make_vanderpol_dashboard(cfg: Cfg, out: Out, ui: Dict[str, Any]) -> go.Figur
     for k, i in enumerate(frame_idx):
         i = int(i)
 
-        # plot subset end index in downsample grid
         j = int(np.searchsorted(plot_idx, i, side="right"))
         if j < 1:
             j = 1
 
-        if trail_on:
-            j0 = max(0, j - trail_max_points)
-            ph_x = v_p[j0:j]
-            ph_y = dv_p[j0:j]
+        if not live_plots:
+            # Static mode: animate marker dots only (and phase trail if trail_on).
+            if trail_on:
+                j0 = max(0, j - trail_max_points)
+                ph_x = v_p[j0:j]
+                ph_y = dv_p[j0:j]
+                fr = go.Frame(
+                    name=str(k),
+                    data=[
+                        go.Scatter(x=ph_x, y=ph_y),                          # 0 phase trail
+                        go.Scatter(x=[float(v[i])], y=[float(dv_dt[i])]),    # 1 phase marker
+                        go.Scatter(x=[float(T[i])], y=[float(v[i])]),        # 5 v marker
+                        go.Scatter(x=[float(T[i])], y=[float(iL[i])]),       # 6 iL marker
+                        go.Scatter(x=[float(T[i])], y=[float(dv_dt[i])]),    # 7 dv marker
+                    ],
+                    traces=animated_traces,
+                )
+            else:
+                fr = go.Frame(
+                    name=str(k),
+                    data=[
+                        go.Scatter(x=[float(v[i])], y=[float(dv_dt[i])]),    # 1 phase marker
+                        go.Scatter(x=[float(T[i])], y=[float(v[i])]),        # 5 v marker
+                        go.Scatter(x=[float(T[i])], y=[float(iL[i])]),       # 6 iL marker
+                        go.Scatter(x=[float(T[i])], y=[float(dv_dt[i])]),    # 7 dv marker
+                    ],
+                    traces=animated_traces,
+                )
         else:
-            ph_x = v_p[:j]
-            ph_y = dv_p[:j]
+            # Live mode: cumulative data.
+            if trail_on:
+                j0 = max(0, j - trail_max_points)
+                ph_x = v_p[j0:j]
+                ph_y = dv_p[j0:j]
+            else:
+                ph_x = v_p[:j]
+                ph_y = dv_p[:j]
 
-        fr = go.Frame(
-            name=str(k),
-            data=[
-                # phase live
-                go.Scatter(x=ph_x, y=ph_y),
-                # phase marker
-                go.Scatter(x=[float(v[i])], y=[float(dv_dt[i])]),
-                # v(t) live
-                go.Scatter(x=T_p[:j], y=v_p[:j]),
-                # v marker
-                go.Scatter(x=[float(T[i])], y=[float(v[i])]),
-                # iL(t) live
-                go.Scatter(x=T_p[:j], y=iL_p[:j]),
-                # iL marker
-                go.Scatter(x=[float(T[i])], y=[float(iL[i])]),
-                # dv/dt live
-                go.Scatter(x=T_p[:j], y=dv_p[:j]),
-                # dv/dt marker
-                go.Scatter(x=[float(T[i])], y=[float(dv_dt[i])]),
-            ],
-            traces=list(range(8)),
-        )
+            fr = go.Frame(
+                name=str(k),
+                data=[
+                    # phase live
+                    go.Scatter(x=ph_x, y=ph_y),
+                    # phase marker
+                    go.Scatter(x=[float(v[i])], y=[float(dv_dt[i])]),
+                    # v(t) live
+                    go.Scatter(x=T_p[:j], y=v_p[:j]),
+                    # v marker
+                    go.Scatter(x=[float(T[i])], y=[float(v[i])]),
+                    # iL(t) live
+                    go.Scatter(x=T_p[:j], y=iL_p[:j]),
+                    # iL marker
+                    go.Scatter(x=[float(T[i])], y=[float(iL[i])]),
+                    # dv/dt live
+                    go.Scatter(x=T_p[:j], y=dv_p[:j]),
+                    # dv/dt marker
+                    go.Scatter(x=[float(T[i])], y=[float(dv_dt[i])]),
+                ],
+                traces=animated_traces,
+            )
         frames.append(fr)
 
     fig.frames = frames

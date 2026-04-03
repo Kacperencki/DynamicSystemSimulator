@@ -14,28 +14,30 @@ at startup does not construct all specs or import all DSS models upfront.
 
 from __future__ import annotations
 
+import importlib
 from typing import Callable, Dict
 
 from apps.streamlit.layout import SystemSpec
-from apps.streamlit.systems.single_pendulum_view import get_spec as single_pendulum_spec
-from apps.streamlit.systems.double_pendulum_view import get_spec as double_pendulum_spec
-from apps.streamlit.systems.vanderpol_view import get_spec as vanderpol_spec
-from apps.streamlit.systems.inverted_pendulum_view import get_spec as inverted_pendulum_spec
-from apps.streamlit.systems.lorenz_view import get_spec as lorenz_spec
-from apps.streamlit.systems.dc_motor_view import get_spec as dc_motor_spec
 
 
 SystemFactory = Callable[[], SystemSpec]
 
 
-# Lazy factories to avoid importing/constructing all specs on app startup.
+def _lazy(module: str, fn: str = "get_spec") -> SystemFactory:
+    def _factory() -> SystemSpec:
+        mod = importlib.import_module(module)
+        return getattr(mod, fn)()
+    return _factory
+
+
+# Lazy factories: each view module is imported only on first selection.
 SYSTEM_FACTORIES: Dict[str, SystemFactory] = {
-    "Single pendulum": single_pendulum_spec,
-    "Double pendulum": double_pendulum_spec,
-    "Inverted pendulum / cart–pole": inverted_pendulum_spec,
-    "DC motor": dc_motor_spec,
-    "Van der Pol oscillator": vanderpol_spec,
-    "Lorenz system": lorenz_spec,
+    "Single pendulum": _lazy("apps.streamlit.systems.single_pendulum_view"),
+    "Double pendulum": _lazy("apps.streamlit.systems.double_pendulum_view"),
+    "Inverted pendulum / cart–pole": _lazy("apps.streamlit.systems.inverted_pendulum_view"),
+    "DC motor": _lazy("apps.streamlit.systems.dc_motor_view"),
+    "Van der Pol oscillator": _lazy("apps.streamlit.systems.vanderpol_view"),
+    "Lorenz system": _lazy("apps.streamlit.systems.lorenz_view"),
 }
 
 
