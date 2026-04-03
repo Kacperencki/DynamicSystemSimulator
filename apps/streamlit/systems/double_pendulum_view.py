@@ -25,7 +25,6 @@ Controls = Dict[str, Any]
 
 RESET_KEYS = [
     "preset",
-    "mode",
     "l1", "m1", "l2", "m2", "g",
     "b1", "b2", "fc1", "fc2",
     "A1", "w1", "phi1", "A2", "w2", "phi2",
@@ -144,39 +143,50 @@ def controls(prefix: str) -> Controls:
             with r3:
                 g = st.number_input("g [m/s²]", value=9.81, key=f"{prefix}_g", help="Gravitational acceleration.")
 
-        b1 = float(st.session_state.get(f"{prefix}_b1", 0.02))
-        b2 = float(st.session_state.get(f"{prefix}_b2", 0.02))
-        fc1 = float(st.session_state.get(f"{prefix}_fc1", 0.0))
-        fc2 = float(st.session_state.get(f"{prefix}_fc2", 0.0))
-        A1 = float(st.session_state.get(f"{prefix}_A1", 0.0))
-        w1 = float(st.session_state.get(f"{prefix}_w1", 0.0))
-        phi1 = float(st.session_state.get(f"{prefix}_phi1", 0.0))
-        A2 = float(st.session_state.get(f"{prefix}_A2", 0.0))
-        w2 = float(st.session_state.get(f"{prefix}_w2", 0.0))
-        phi2 = float(st.session_state.get(f"{prefix}_phi2", 0.0))
+        st.session_state.setdefault(f"{prefix}_b1", 0.02)
+        st.session_state.setdefault(f"{prefix}_b2", 0.02)
+        st.session_state.setdefault(f"{prefix}_fc1", 0.0)
+        st.session_state.setdefault(f"{prefix}_fc2", 0.0)
+        st.session_state.setdefault(f"{prefix}_A1", 0.0)
+        st.session_state.setdefault(f"{prefix}_w1", 0.0)
+        st.session_state.setdefault(f"{prefix}_phi1", 0.0)
+        st.session_state.setdefault(f"{prefix}_A2", 0.0)
+        st.session_state.setdefault(f"{prefix}_w2", 0.0)
+        st.session_state.setdefault(f"{prefix}_phi2", 0.0)
+
+        b1 = float(st.session_state[f"{prefix}_b1"])
+        b2 = float(st.session_state[f"{prefix}_b2"])
+        fc1 = float(st.session_state[f"{prefix}_fc1"])
+        fc2 = float(st.session_state[f"{prefix}_fc2"])
+        A1 = float(st.session_state[f"{prefix}_A1"])
+        w1 = float(st.session_state[f"{prefix}_w1"])
+        phi1 = float(st.session_state[f"{prefix}_phi1"])
+        A2 = float(st.session_state[f"{prefix}_A2"])
+        w2 = float(st.session_state[f"{prefix}_w2"])
+        phi2 = float(st.session_state[f"{prefix}_phi2"])
 
         if mode in ("damped", "driven"):
             with st.expander("Damping / friction", expanded=False):
                 c1, c2 = st.columns(2)
                 with c1:
-                    b1 = st.number_input("b₁ [N·m·s/rad]", value=0.02, min_value=0.0, key=f"{prefix}_b1", help="Viscous damping at joint 1 (upper pivot). Damps upper arm velocity; higher values suppress large swings faster.")
-                    fc1 = st.number_input("Fc₁ [N·m]", value=0.0, min_value=0.0, key=f"{prefix}_fc1", help="Coulomb (dry) friction torque at joint 1. The arm locks when torque falls below this threshold.")
+                    b1 = st.number_input("b₁ [N·m·s/rad]", min_value=0.0, key=f"{prefix}_b1", help="Viscous damping at joint 1 (upper pivot). Damps upper arm velocity; higher values suppress large swings faster.")
+                    fc1 = st.number_input("Fc₁ [N·m]", min_value=0.0, key=f"{prefix}_fc1", help="Coulomb (dry) friction torque at joint 1. The arm locks when torque falls below this threshold.")
                 with c2:
-                    b2 = st.number_input("b₂ [N·m·s/rad]", value=0.02, min_value=0.0, key=f"{prefix}_b2", help="Viscous damping at joint 2 (lower pivot). Damps lower arm velocity; particularly effective at suppressing high-frequency oscillations.")
-                    fc2 = st.number_input("Fc₂ [N·m]", value=0.0, min_value=0.0, key=f"{prefix}_fc2", help="Coulomb (dry) friction torque at joint 2. The lower arm locks when its torque falls below this threshold.")
+                    b2 = st.number_input("b₂ [N·m·s/rad]", min_value=0.0, key=f"{prefix}_b2", help="Viscous damping at joint 2 (lower pivot). Damps lower arm velocity; particularly effective at suppressing high-frequency oscillations.")
+                    fc2 = st.number_input("Fc₂ [N·m]", min_value=0.0, key=f"{prefix}_fc2", help="Coulomb (dry) friction torque at joint 2. The lower arm locks when its torque falls below this threshold.")
 
         if mode == "driven":
             with st.expander("Drive parameters", expanded=False):
                 p1, p2, p3 = st.columns(3)
                 with p1:
-                    A1 = st.number_input("A₁ [N·m]", value=0.0, min_value=0.0, key=f"{prefix}_A1", help="Drive torque amplitude for link 1. Torque = A·cos(ω·t + φ). Set ω=0 for a constant torque of A·cos(φ).")
-                    A2 = st.number_input("A₂ [N·m]", value=0.0, min_value=0.0, key=f"{prefix}_A2", help="Drive torque amplitude for link 2. Torque = A·cos(ω·t + φ). Set ω=0 for a constant torque of A·cos(φ).")
+                    A1 = st.number_input("A₁ [N·m]", min_value=0.0, key=f"{prefix}_A1", help="Drive torque amplitude for link 1. Torque = A·cos(ω·t + φ). Set ω=0 for a constant torque of A·cos(φ).")
+                    A2 = st.number_input("A₂ [N·m]", min_value=0.0, key=f"{prefix}_A2", help="Drive torque amplitude for link 2. Torque = A·cos(ω·t + φ). Set ω=0 for a constant torque of A·cos(φ).")
                 with p2:
-                    w1 = st.number_input("ω₁ [rad/s]", value=0.0, min_value=0.0, key=f"{prefix}_w1", help="Drive angular frequency for link 1. Set to 0 for constant torque.")
-                    w2 = st.number_input("ω₂ [rad/s]", value=0.0, min_value=0.0, key=f"{prefix}_w2", help="Drive angular frequency for link 2. Set to 0 for constant torque.")
+                    w1 = st.number_input("ω₁ [rad/s]", min_value=0.0, key=f"{prefix}_w1", help="Drive angular frequency for link 1. Set to 0 for constant torque.")
+                    w2 = st.number_input("ω₂ [rad/s]", min_value=0.0, key=f"{prefix}_w2", help="Drive angular frequency for link 2. Set to 0 for constant torque.")
                 with p3:
-                    phi1 = st.number_input("φ₁ [rad]", value=0.0, key=f"{prefix}_phi1", help="Drive phase offset for link 1. When ω=0: torque = A·cos(φ), so φ=0 → +A, φ=π → −A.")
-                    phi2 = st.number_input("φ₂ [rad]", value=0.0, key=f"{prefix}_phi2", help="Drive phase offset for link 2. When ω=0: torque = A·cos(φ), so φ=0 → +A, φ=π → −A.")
+                    phi1 = st.number_input("φ₁ [rad]", key=f"{prefix}_phi1", help="Drive phase offset for link 1. When ω=0: torque = A·cos(φ), so φ=0 → +A, φ=π → −A.")
+                    phi2 = st.number_input("φ₂ [rad]", key=f"{prefix}_phi2", help="Drive phase offset for link 2. When ω=0: torque = A·cos(φ), so φ=0 → +A, φ=π → −A.")
         else:
             A1 = A2 = w1 = w2 = phi1 = phi2 = 0.0
 

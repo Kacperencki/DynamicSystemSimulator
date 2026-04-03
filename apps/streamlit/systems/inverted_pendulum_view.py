@@ -25,35 +25,40 @@ Controls = Dict[str, Any]
 
 def _lqr_settings_expander(prefix: str) -> Dict[str, Any]:
     """Render the LQR weights expander and return the settings dict."""
+    st.session_state.setdefault(f"{prefix}_q_x", 1.0)
+    st.session_state.setdefault(f"{prefix}_q_xdot", 1.0)
+    st.session_state.setdefault(f"{prefix}_q_theta", 60.0)
+    st.session_state.setdefault(f"{prefix}_q_thetad", 1.0)
+    st.session_state.setdefault(f"{prefix}_u_max", 20.0)
     with st.expander("LQR settings", expanded=False):
         q1, q2 = st.columns(2)
         with q1:
-            q_x = st.number_input("x weight", value=1.0, min_value=0.0, key=f"{prefix}_q_x",
+            q_x = st.number_input("x weight", min_value=0.0, key=f"{prefix}_q_x",
                                   help="State cost weight for cart position x. Bryson's rule: set to 1/x_max². Higher = penalise drift from target more strongly. Typical range: 1–10.")
-            q_xdot = st.number_input("ẋ weight", value=1.0, min_value=0.0, key=f"{prefix}_q_xdot",
+            q_xdot = st.number_input("ẋ weight", min_value=0.0, key=f"{prefix}_q_xdot",
                                      help="State cost weight for cart velocity. Bryson's rule: set to 1/ẋ_max². Higher = penalise fast cart motion. Typical range: 1–5.")
         with q2:
-            q_theta = st.number_input("θ weight", value=60.0, min_value=0.0, key=f"{prefix}_q_theta",
+            q_theta = st.number_input("θ weight", min_value=0.0, key=f"{prefix}_q_theta",
                                       help="State cost weight for pole angle. Bryson's rule: set to 1/θ_max². Dominant weight — much higher than x weight produces aggressive upright correction. Typical range: 50–200.")
-            q_thetad = st.number_input("θ̇ weight", value=1.0, min_value=0.0, key=f"{prefix}_q_thetad",
+            q_thetad = st.number_input("θ̇ weight", min_value=0.0, key=f"{prefix}_q_thetad",
                                        help="State cost weight for pole angular velocity. Bryson's rule: set to 1/θ̇_max². Higher values damp oscillations at the expense of slower response. Typical range: 1–5.")
-        u_max = st.number_input("Force limit [N]", value=20.0, min_value=0.0, key=f"{prefix}_u_max",
+        u_max = st.number_input("Force limit [N]", min_value=0.0, key=f"{prefix}_u_max",
                                 help="Maximum cart force the LQR output is clamped to (actuator saturation). Bryson's rule: set to 1/u_max² for the R matrix. Typical physical limit: 10–30 N.")
     return dict(q_x=q_x, q_xdot=q_xdot, q_theta=q_theta, q_thetad=q_thetad, u_max=u_max)
 
 
 def _swingup_settings_expander(prefix: str) -> Dict[str, Any]:
     """Render the Swing-up settings expander and return the settings dict."""
+    st.session_state.setdefault(f"{prefix}_k_e", 0.0)
+    st.session_state.setdefault(f"{prefix}_su_u_max", 25.0)
     with st.expander("Swing-up settings", expanded=False):
         k_e = st.number_input(
             "Energy gain (0 = auto)",
-            value=float(st.session_state.get(f"{prefix}_k_e") or 0.0),
             min_value=0.0, key=f"{prefix}_k_e",
             help="Energy pumping gain k_e used in the swing-up law: u = k_e·(E − E_ref)·sign(θ̇·cos θ). 0 = use the physics-based default k_e = 5/(m·lc). Larger values pump energy faster but can overshoot and make catch harder.",
         )
         su_u_max = st.number_input(
             "Max force [N]",
-            value=float(st.session_state.get(f"{prefix}_su_u_max") or 25.0),
             min_value=0.1, key=f"{prefix}_su_u_max",
             help="Maximum cart force the swing-up controller can apply.",
         )
@@ -62,9 +67,6 @@ def _swingup_settings_expander(prefix: str) -> Dict[str, Any]:
 
 RESET_KEYS = [
     "preset",
-    "ctrl_mode",
-    "mode",
-    "mass_model",
     "length", "mass", "cart_mass", "g",
     "b_cart", "coulomb_cart", "b_pend", "coulomb_pend", "coulomb_k",
     "cart_drive_amp", "cart_drive_freq", "cart_drive_phase",
@@ -199,28 +201,38 @@ def controls(prefix: str) -> Controls:
                 )
 
         # friction defaults (persist between modes)
-        b_cart = float(st.session_state.get(f"{prefix}_b_cart", 0.0))
-        coulomb_cart = float(st.session_state.get(f"{prefix}_coulomb_cart", 0.0))
-        b_pend = float(st.session_state.get(f"{prefix}_b_pend", 0.0))
-        coulomb_pend = float(st.session_state.get(f"{prefix}_coulomb_pend", 0.0))
+        st.session_state.setdefault(f"{prefix}_b_cart", 0.0)
+        st.session_state.setdefault(f"{prefix}_coulomb_cart", 0.0)
+        st.session_state.setdefault(f"{prefix}_b_pend", 0.0)
+        st.session_state.setdefault(f"{prefix}_coulomb_pend", 0.0)
+        b_cart = float(st.session_state[f"{prefix}_b_cart"])
+        coulomb_cart = float(st.session_state[f"{prefix}_coulomb_cart"])
+        b_pend = float(st.session_state[f"{prefix}_b_pend"])
+        coulomb_pend = float(st.session_state[f"{prefix}_coulomb_pend"])
 
         # drive defaults (persist between modes)
-        cart_drive_amp = float(st.session_state.get(f"{prefix}_cart_drive_amp", 0.0))
-        cart_drive_freq = float(st.session_state.get(f"{prefix}_cart_drive_freq", 0.0))
-        cart_drive_phase = float(st.session_state.get(f"{prefix}_cart_drive_phase", 0.0))
-        pend_drive_amp = float(st.session_state.get(f"{prefix}_pend_drive_amp", 0.0))
-        pend_drive_freq = float(st.session_state.get(f"{prefix}_pend_drive_freq", 0.0))
-        pend_drive_phase = float(st.session_state.get(f"{prefix}_pend_drive_phase", 0.0))
+        st.session_state.setdefault(f"{prefix}_cart_drive_amp", 0.0)
+        st.session_state.setdefault(f"{prefix}_cart_drive_freq", 0.0)
+        st.session_state.setdefault(f"{prefix}_cart_drive_phase", 0.0)
+        st.session_state.setdefault(f"{prefix}_pend_drive_amp", 0.0)
+        st.session_state.setdefault(f"{prefix}_pend_drive_freq", 0.0)
+        st.session_state.setdefault(f"{prefix}_pend_drive_phase", 0.0)
+        cart_drive_amp = float(st.session_state[f"{prefix}_cart_drive_amp"])
+        cart_drive_freq = float(st.session_state[f"{prefix}_cart_drive_freq"])
+        cart_drive_phase = float(st.session_state[f"{prefix}_cart_drive_phase"])
+        pend_drive_amp = float(st.session_state[f"{prefix}_pend_drive_amp"])
+        pend_drive_freq = float(st.session_state[f"{prefix}_pend_drive_freq"])
+        pend_drive_phase = float(st.session_state[f"{prefix}_pend_drive_phase"])
 
         if mode in ("damped", "driven"):
             with st.expander("Friction", expanded=False):
                 f1, f2 = st.columns(2)
                 with f1:
-                    b_cart = st.number_input("b cart [N·s/m]", value=b_cart, min_value=0.0, key=f"{prefix}_b_cart", help="Viscous friction coefficient of the cart [N·s/m]. Damps cart velocity; force = b·ẋ. Higher values slow the cart and reduce oscillation amplitude.")
-                    coulomb_cart = st.number_input("Fc cart [N]", value=coulomb_cart, min_value=0.0, key=f"{prefix}_coulomb_cart", help="Coulomb (dry) friction force on the cart [N]. Constant opposing force when the cart is moving; cart locks when net force drops below this value.")
+                    b_cart = st.number_input("b cart [N·s/m]", min_value=0.0, key=f"{prefix}_b_cart", help="Viscous friction coefficient of the cart [N·s/m]. Damps cart velocity; force = b·ẋ. Higher values slow the cart and reduce oscillation amplitude.")
+                    coulomb_cart = st.number_input("Fc cart [N]", min_value=0.0, key=f"{prefix}_coulomb_cart", help="Coulomb (dry) friction force on the cart [N]. Constant opposing force when the cart is moving; cart locks when net force drops below this value.")
                 with f2:
-                    b_pend = st.number_input("b pend [N·m·s/rad]", value=b_pend, min_value=0.0, key=f"{prefix}_b_pend", help="Viscous damping at the pole pivot [N·m·s/rad]. Damps angular velocity; torque = b·θ̇. Higher values suppress oscillations at the pivot faster.")
-                    coulomb_pend = st.number_input("Fc pend [N·m]", value=coulomb_pend, min_value=0.0, key=f"{prefix}_coulomb_pend", help="Coulomb (dry) friction torque at the pole pivot [N·m]. Constant opposing torque when the pole is rotating; pole locks when driving torque falls below this threshold.")
+                    b_pend = st.number_input("b pend [N·m·s/rad]", min_value=0.0, key=f"{prefix}_b_pend", help="Viscous damping at the pole pivot [N·m·s/rad]. Damps angular velocity; torque = b·θ̇. Higher values suppress oscillations at the pivot faster.")
+                    coulomb_pend = st.number_input("Fc pend [N·m]", min_value=0.0, key=f"{prefix}_coulomb_pend", help="Coulomb (dry) friction torque at the pole pivot [N·m]. Constant opposing torque when the pole is rotating; pole locks when driving torque falls below this threshold.")
         else:
             b_cart = coulomb_cart = b_pend = coulomb_pend = 0.0
 
@@ -228,13 +240,13 @@ def controls(prefix: str) -> Controls:
             with st.expander("External drives", expanded=False):
                 d1, d2 = st.columns(2)
                 with d1:
-                    cart_drive_amp = st.number_input("Cart drive A [N]", value=cart_drive_amp, min_value=0.0, key=f"{prefix}_cart_drive_amp", help="Amplitude of sinusoidal force on the cart. Force = A·cos(ω·t + φ). Set ω=0 for a constant offset force of A·cos(φ).")
-                    cart_drive_freq = st.number_input("Cart drive ω [rad/s]", value=cart_drive_freq, min_value=0.0, key=f"{prefix}_cart_drive_freq", help="Angular frequency of the cart drive force. Set to 0 for a constant force A·cos(φ).")
-                    cart_drive_phase = st.number_input("Cart drive φ [rad]", value=cart_drive_phase, key=f"{prefix}_cart_drive_phase", help="Phase offset of the cart drive force. When ω=0: force = A·cos(φ), so φ=0 → +A, φ=π → −A.")
+                    cart_drive_amp = st.number_input("Cart drive A [N]", min_value=0.0, key=f"{prefix}_cart_drive_amp", help="Amplitude of sinusoidal force on the cart. Force = A·cos(ω·t + φ). Set ω=0 for a constant offset force of A·cos(φ).")
+                    cart_drive_freq = st.number_input("Cart drive ω [rad/s]", min_value=0.0, key=f"{prefix}_cart_drive_freq", help="Angular frequency of the cart drive force. Set to 0 for a constant force A·cos(φ).")
+                    cart_drive_phase = st.number_input("Cart drive φ [rad]", key=f"{prefix}_cart_drive_phase", help="Phase offset of the cart drive force. When ω=0: force = A·cos(φ), so φ=0 → +A, φ=π → −A.")
                 with d2:
-                    pend_drive_amp = st.number_input("Pend drive A [N·m]", value=pend_drive_amp, min_value=0.0, key=f"{prefix}_pend_drive_amp", help="Amplitude of sinusoidal torque on the pole. Torque = A·cos(ω·t + φ). Set ω=0 for a constant torque of A·cos(φ).")
-                    pend_drive_freq = st.number_input("Pend drive ω [rad/s]", value=pend_drive_freq, min_value=0.0, key=f"{prefix}_pend_drive_freq", help="Angular frequency of the pole drive torque. Set to 0 for a constant torque A·cos(φ).")
-                    pend_drive_phase = st.number_input("Pend drive φ [rad]", value=pend_drive_phase, key=f"{prefix}_pend_drive_phase", help="Phase offset of the pole drive torque. When ω=0: torque = A·cos(φ), so φ=0 → +A, φ=π → −A.")
+                    pend_drive_amp = st.number_input("Pend drive A [N·m]", min_value=0.0, key=f"{prefix}_pend_drive_amp", help="Amplitude of sinusoidal torque on the pole. Torque = A·cos(ω·t + φ). Set ω=0 for a constant torque of A·cos(φ).")
+                    pend_drive_freq = st.number_input("Pend drive ω [rad/s]", min_value=0.0, key=f"{prefix}_pend_drive_freq", help="Angular frequency of the pole drive torque. Set to 0 for a constant torque A·cos(φ).")
+                    pend_drive_phase = st.number_input("Pend drive φ [rad]", key=f"{prefix}_pend_drive_phase", help="Phase offset of the pole drive torque. When ω=0: torque = A·cos(φ), so φ=0 → +A, φ=π → −A.")
         else:
             cart_drive_amp = cart_drive_freq = cart_drive_phase = 0.0
             pend_drive_amp = pend_drive_freq = pend_drive_phase = 0.0
@@ -263,32 +275,41 @@ def controls(prefix: str) -> Controls:
             swing_settings = _swingup_settings_expander(prefix)
             lqr_settings = _lqr_settings_expander(prefix)
 
+            st.session_state.setdefault(f"{prefix}_engage_angle_deg", 27.0)
+            st.session_state.setdefault(f"{prefix}_engage_speed_rad_s", 9.0)
+            st.session_state.setdefault(f"{prefix}_engage_cart_speed", 6.0)
+            st.session_state.setdefault(f"{prefix}_dropout_angle_deg", 45.0)
+            st.session_state.setdefault(f"{prefix}_dropout_speed_rad_s", 30.0)
+            st.session_state.setdefault(f"{prefix}_dropout_cart_speed", 10.0)
+            st.session_state.setdefault(f"{prefix}_allow_dropout", True)
+            st.session_state.setdefault(f"{prefix}_blend_time", 0.12)
+            st.session_state.setdefault(f"{prefix}_du_max", 800.0)
             with st.expander("Switcher settings", expanded=False):
                 s1, s2 = st.columns(2)
                 with s1:
                     st.caption("Engage LQR when below:")
-                    engage_angle_deg = st.number_input("Angle [°]", value=27.0, min_value=0.0, key=f"{prefix}_engage_angle_deg",
+                    engage_angle_deg = st.number_input("Angle [°]", min_value=0.0, key=f"{prefix}_engage_angle_deg",
                                                        help="Switch to LQR when the pole is within this angle of upright. Must be large enough to catch the pole on its first approach — if the pole just misses this window, it completes a full rotation before the next chance.")
-                    engage_speed_rad_s = st.number_input("Pole speed [rad/s]", value=9.0, min_value=0.0, key=f"{prefix}_engage_speed_rad_s",
+                    engage_speed_rad_s = st.number_input("Pole speed [rad/s]", min_value=0.0, key=f"{prefix}_engage_speed_rad_s",
                                                           help="Switch to LQR only if angular speed is below this threshold.")
-                    engage_cart_speed = st.number_input("Cart speed [m/s]", value=6.0, min_value=0.0, key=f"{prefix}_engage_cart_speed",
+                    engage_cart_speed = st.number_input("Cart speed [m/s]", min_value=0.0, key=f"{prefix}_engage_cart_speed",
                                                          help="Switch to LQR only if cart speed is below this threshold.")
                 with s2:
                     st.caption("Exit LQR when above:")
-                    dropout_angle_deg = st.number_input("Angle [°] ", value=45.0, min_value=0.0, key=f"{prefix}_dropout_angle_deg",
+                    dropout_angle_deg = st.number_input("Angle [°] ", min_value=0.0, key=f"{prefix}_dropout_angle_deg",
                                                          help="Drop back to swing-up if pole exceeds this angle while in LQR mode.")
-                    dropout_speed_rad_s = st.number_input("Pole speed [rad/s] ", value=30.0, min_value=0.0, key=f"{prefix}_dropout_speed_rad_s",
+                    dropout_speed_rad_s = st.number_input("Pole speed [rad/s] ", min_value=0.0, key=f"{prefix}_dropout_speed_rad_s",
                                                            help="Drop back to swing-up if angular speed exceeds this while in LQR mode.")
-                    dropout_cart_speed = st.number_input("Cart speed [m/s] ", value=10.0, min_value=0.0, key=f"{prefix}_dropout_cart_speed",
+                    dropout_cart_speed = st.number_input("Cart speed [m/s] ", min_value=0.0, key=f"{prefix}_dropout_cart_speed",
                                                           help="Drop back to swing-up if cart speed exceeds this while in LQR mode.")
-                allow_dropout = st.checkbox("Allow LQR exit", value=True, key=f"{prefix}_allow_dropout",
+                allow_dropout = st.checkbox("Allow LQR exit", key=f"{prefix}_allow_dropout",
                                             help="If checked, LQR gives up and returns to swing-up when the pole diverges too far.")
                 b1, b2 = st.columns(2)
                 with b1:
-                    blend_time = st.number_input("Blend time [s]", value=0.12, min_value=0.0, key=f"{prefix}_blend_time",
+                    blend_time = st.number_input("Blend time [s]", min_value=0.0, key=f"{prefix}_blend_time",
                                                  help="Transition time when switching between controllers (if supported).")
                 with b2:
-                    du_max = st.number_input("Force rate [N/s]", value=800.0, min_value=0.0, key=f"{prefix}_du_max",
+                    du_max = st.number_input("Force rate [N/s]", min_value=0.0, key=f"{prefix}_du_max",
                                              help="Maximum rate of change of control force (if supported).")
                 switch_settings = dict(
                     engage_angle_deg=engage_angle_deg,

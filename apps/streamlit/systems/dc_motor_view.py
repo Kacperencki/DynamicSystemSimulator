@@ -25,8 +25,8 @@ Controls = Dict[str, Any]
 RESET_KEYS = [
     "preset",
     "R", "L", "Ke", "Kt", "J", "bm",
-    "v_mode", "V0", "v_offset", "t_step", "v_freq", "v_duty",
-    "load_mode", "tau_load", "b_load", "tau_c", "omega_eps",
+    "V0", "v_offset", "t_step", "v_freq", "v_duty",
+    "tau_load", "b_load", "tau_c", "omega_eps",
     "i0", "omega0",
     "t0", "t1", "dt",
     "solver_method", "rtol", "atol",
@@ -136,25 +136,29 @@ def controls(prefix: str) -> Controls:
                 v_freq = float(st.session_state.get(f"{prefix}_v_freq", 2.0))
                 v_duty = float(st.session_state.get(f"{prefix}_v_duty", 0.5))
 
+        st.session_state.setdefault(f"{prefix}_tau_load", 0.05)
+        st.session_state.setdefault(f"{prefix}_b_load", 2e-3)
+        st.session_state.setdefault(f"{prefix}_tau_c", 0.02)
+        st.session_state.setdefault(f"{prefix}_omega_eps", 0.5)
         with st.expander("Load parameters", expanded=False):
             if load_mode == "none":
                 tau_load = 0.0
                 b_load = 0.0
                 tau_c = 0.0
-                omega_eps = float(st.session_state.get(f"{prefix}_omega_eps", 0.5))
+                omega_eps = float(st.session_state[f"{prefix}_omega_eps"])
             elif load_mode == "constant":
-                tau_load = st.number_input("τ_load [N·m]", value=0.05, min_value=0.0, format="%.6g", key=f"{prefix}_tau_load", help="Constant resistive torque load on the shaft.")
+                tau_load = st.number_input("τ_load [N·m]", min_value=0.0, format="%.6g", key=f"{prefix}_tau_load", help="Constant resistive torque load on the shaft.")
                 b_load = 0.0
                 tau_c = 0.0
-                omega_eps = float(st.session_state.get(f"{prefix}_omega_eps", 0.5))
+                omega_eps = float(st.session_state[f"{prefix}_omega_eps"])
             elif load_mode == "viscous":
-                b_load = st.number_input("b_load [N·m·s]", value=2e-3, min_value=0.0, format="%.6g", key=f"{prefix}_b_load", help="Viscous load damping coefficient.")
+                b_load = st.number_input("b_load [N·m·s]", min_value=0.0, format="%.6g", key=f"{prefix}_b_load", help="Viscous load damping coefficient.")
                 tau_load = 0.0
                 tau_c = 0.0
-                omega_eps = float(st.session_state.get(f"{prefix}_omega_eps", 0.5))
+                omega_eps = float(st.session_state[f"{prefix}_omega_eps"])
             else:  # coulomb
-                tau_c = st.number_input("τ_c [N·m]", value=0.02, min_value=0.0, format="%.6g", key=f"{prefix}_tau_c", help="Coulomb (dry) friction torque of the load.")
-                omega_eps = st.number_input("ω_eps [rad/s]", value=0.5, min_value=1e-6, format="%.6g", key=f"{prefix}_omega_eps", help="Speed threshold below which Coulomb friction is smoothed.")
+                tau_c = st.number_input("τ_c [N·m]", min_value=0.0, format="%.6g", key=f"{prefix}_tau_c", help="Coulomb (dry) friction torque of the load.")
+                omega_eps = st.number_input("ω_eps [rad/s]", min_value=1e-6, format="%.6g", key=f"{prefix}_omega_eps", help="Speed threshold below which Coulomb friction is smoothed.")
                 tau_load = 0.0
                 b_load = 0.0
 
